@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Деградация сервисов</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
+</head>
+<body>
+<header>
+    <h1>Деградация сервисов</h1>
+    <p class="muted">Демо-данные из пример.xlsx</p>
+</header>
+
+<div class="filters">
+    <label>Категория
+        <select id="category">
+            <option value="">Все категории</option>
+        </select>
+    </label>
+</div>
+
+<p class="error" id="error" role="alert" hidden></p>
+
+<main id="dashboard">
+    <section class="kpis" id="kpis" aria-label="Ключевые показатели"></section>
+
+    <section class="card">
+        <h2>Распределение по глубине деградации</h2>
+        <p class="muted">Количество случаев в каждом диапазоне, обе метрики</p>
+        <div class="legend" id="legend-dist"></div>
+        <div class="chart" id="chart-dist"></div>
+    </section>
+
+    <section class="card">
+        <h2>Случаи по сервисам</h2>
+        <p class="muted">Сумма по всем диапазонам; сервисы сгруппированы по категориям и операциям</p>
+        <div class="legend" id="legend-svc"></div>
+        <div id="chart-svc"></div>
+    </section>
+
+    <section class="card">
+        <h2>Сервис × диапазон</h2>
+        <p class="muted">Исходная матрица из Excel: чем темнее ячейка, тем больше случаев; шкала общая для обеих метрик</p>
+        <div class="heatmaps" id="heatmaps"></div>
+        <div class="scale" id="scale"></div>
+    </section>
+</main>
+
+<div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+</body>
+</html>

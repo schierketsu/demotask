@@ -1,0 +1,61 @@
+services:
+  db:
+    build: .
+    restart: always
+    shm_size: 128mb
+    environment:
+      POSTGRES_USER: postgres_admin
+      POSTGRES_PASSWORD: example
+      POSTGRES_DB: testdb
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=ru-RU"
+    ports:
+      - "${DB_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql
+      # схема и демо-данные загружаются автоматически при первом старте с пустым томом
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      # -h 127.0.0.1: пока выполняются init-скрипты, postgres слушает только сокет, поэтому «готов» = данные загружены
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres_admin -d testdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  adminer:
+    image: adminer
+    restart: always
+    depends_on:
+      - db
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - "${ADMINER_HOST_PORT:-8080}:8080"
+
+  php:
+    build: ./docker/php
+    restart: always
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: testdb
+      DB_USER: postgres_admin
+      DB_PASSWORD: example
+    volumes:
+      - ./src:/var/www/src:ro
+    depends_on:
+      db:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    restart: always
+    ports:
+      - "${WEB_HOST_PORT:-8000}:80"
+    volumes:
+      - ./public:/var/www/public:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+
+volumes:
+  postgres_data:
