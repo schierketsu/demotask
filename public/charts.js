@@ -1,10 +1,17 @@
-// Отрисовка графиков без сторонних библиотек: SVG для столбцов, HTML для баров и тепловых карт.
-// Все подписи из данных вставляются через textContent.
+// Отрисовка без сторонних библиотек: кольцевая диаграмма (SVG), полосы по сервисам и таблица (HTML).
+// Подписи из данных вставляются только через textContent.
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 export const fmt = new Intl.NumberFormat('ru-RU');
 const pct = new Intl.NumberFormat('ru-RU', { style: 'percent', maximumFractionDigits: 0 });
 const pluralRules = new Intl.PluralRules('ru-RU');
+
+export const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+
+/** «авария / аварии / аварий» */
+export function plural(n, [one, few, many]) {
+    return { one, few, many }[pluralRules.select(n)] ?? many;
+}
 
 export function el(tag, attrs = {}, parent = null, text = null) {
     const node = document.createElement(tag);
@@ -21,11 +28,21 @@ function svgEl(tag, attrs, parent) {
     return node;
 }
 
-const sum = (arr) => arr.reduce((a, b) => a + b, 0);
+// ---------- цвета ----------
 
-/** «случай / случая / случаев» */
-function plural(n, [one, few, many]) {
-    return { one, few, many }[pluralRules.select(n)] ?? many;
+const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
+/** Полупрозрачный оттенок цвета — фон для нулевых ячеек */
+const tint = (hex, alpha) => `rgba(${rgb(hex).join(', ')}, ${alpha})`;
+
+/** Тёмный или белый текст — что контрастнее на этом фоне */
+export function inkFor(hex) {
+    const [r, g, b] = rgb(hex).map((v) => {
+        v /= 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+    });
+    const lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return (lum + 0.05) / 0.05 > 1.05 / (lum + 0.05) ? '#0b0b0b' : '#ffffff';
 }
 
 // ---------- подсказка ----------
@@ -37,8 +54,8 @@ function showTip(title, rows, x, y) {
     el('div', { class: 'tip-title' }, tip, title);
     for (const r of rows) {
         const row = el('div', { class: 'tip-row' }, tip);
-        el('span', { class: `tip-key ${r.cls}` }, row);
-        el('strong', {}, row, fmt.format(r.value));
+        el('span', { class: 'tip-key', style: `background: ${r.color}` }, row);
+        el('span', {}, row, fmt.format(r.value));
         el('span', { class: 'tip-label' }, row, r.label);
     }
     tip.hidden = false;
@@ -47,258 +64,189 @@ function showTip(title, rows, x, y) {
     tip.style.top = `${y + 14 + h > innerHeight - 8 ? y - h - 10 : y + 14}px`;
 }
 
-const hideTip = () => { tip.hidden = true; };
-
-/** Подсказка по наведению и по фокусу с клавиатуры; content() -> { title, rows } */
 function bindTip(node, content) {
     node.addEventListener('pointermove', (e) => {
         const { title, rows } = content();
         showTip(title, rows, e.clientX, e.clientY);
     });
-    node.addEventListener('pointerleave', hideTip);
-    node.addEventListener('focus', () => {
-        const r = node.getBoundingClientRect();
-        const { title, rows } = content();
-        showTip(title, rows, r.left + r.width / 2, r.top);
-    });
-    node.addEventListener('blur', hideTip);
+    node.addEventListener('pointerleave', () => { tip.hidden = true; });
 }
 
-// ---------- легенда ----------
+// ---------- кольцевая диаграмма ----------
 
-export function renderLegend(host, series) {
-    host.replaceChildren(...series.map((s) => {
-        const item = el('span');
-        el('span', { class: `key ${s.cls}` }, item);
-        item.append(s.label);
-        return item;
-    }));
-}
-
-// ---------- KPI ----------
-
-export function renderKpis(host, series, data) {
-    const byMetric = new Map(data.kpi.map((k) => [k.metric_id, k]));
-    const tiles = series.map((s) => {
-        const k = byMetric.get(s.id) ?? { total: 0, services_affected: 0, severe: 0 };
-        const tile = el('div', { class: 'kpi' });
-        const label = el('div', { class: 'kpi-label' }, tile);
-        el('span', { class: `key ${s.cls}` }, label);
-        label.append(s.label);
-        el('div', { class: 'kpi-value' }, tile, fmt.format(k.total));
-        el('div', { class: 'kpi-sub' }, tile, plural(k.total, ['случай деградации', 'случая деградации', 'случаев деградации']));
-        const meta = el('dl', { class: 'kpi-meta' }, tile);
-        const item = (dt, dd) => {
-            const d = el('div', {}, meta);
-            el('dt', {}, d, dt);
-            el('dd', {}, d, dd);
-        };
-        item('Затронуто сервисов', `${fmt.format(k.services_affected)} из ${fmt.format(data.services_total)}`);
-        item('Глубокая деградация (>50%)', k.total ? `${fmt.format(k.severe)} · ${pct.format(k.severe / k.total)}` : '0');
-        return tile;
-    });
-
-    // Для пары метрик — насколько вторая отличается от первой
-    if (series.length === 2) {
-        const [a, b] = series.map((s) => byMetric.get(s.id)?.total ?? 0);
-        const tile = el('div', { class: 'kpi' });
-        el('div', { class: 'kpi-label' }, tile, 'Разница между метриками');
-        const delta = a ? (b - a) / a : null;
-        el('div', { class: 'kpi-value' }, tile, delta === null ? '—' : (delta > 0 ? '+' : '') + pct.format(delta).replace('-', '−'));
-        el('div', { class: 'kpi-sub' }, tile, `«${series[1].label}» относительно «${series[0].label}»: ${fmt.format(a)} → ${fmt.format(b)}`);
-        tiles.push(tile);
-    }
-    host.replaceChildren(...tiles);
-}
-
-// ---------- сгруппированные столбцы (SVG) ----------
-
-function niceTicks(max, count = 4) {
-    if (max <= 0) return [0, 1];
-    const raw = max / count;
-    const pow = 10 ** Math.floor(Math.log10(raw));
-    const step = Math.max(1, [1, 2, 5, 10].map((m) => m * pow).find((s) => s >= raw));
-    const ticks = [];
-    for (let v = 0; v < max + step; v += step) ticks.push(v);
-    return ticks;
-}
-
-/** Прямоугольник со скруглённым верхом (конец данных) и прямым основанием */
-function columnPath(x, y, w, h, r) {
-    r = Math.min(r, w / 2, h);
-    return `M${x},${y + h}V${y + r}A${r},${r} 0 0 1 ${x + r},${y}H${x + w - r}A${r},${r} 0 0 1 ${x + w},${y + r}V${y + h}Z`;
+/** Сектор кольца от угла a0 до a1 (радианы, 0 — сверху, по часовой) */
+function arc(c, R, r, a0, a1) {
+    const pt = (rad, a) => `${c + rad * Math.sin(a)},${c - rad * Math.cos(a)}`;
+    const large = a1 - a0 > Math.PI ? 1 : 0;
+    return `M${pt(R, a0)}A${R},${R} 0 ${large} 1 ${pt(R, a1)}L${pt(r, a1)}A${r},${r} 0 ${large} 0 ${pt(r, a0)}Z`;
 }
 
 /**
- * labels — подписи групп по оси X; series — [{ label, cls, values[] }]
+ * parts: [{ label, sub, value, color }]; selected — индекс выбранной части или null;
+ * onSelect(i) вызывается по клику на сектор или строку легенды.
  */
-export function renderColumns(host, { labels, series, axisTitle }) {
-    const W = Math.max(280, host.clientWidth);
-    const plotH = 220;
-    const m = { top: 18, right: 4, left: 32 };
-    const band = (W - m.left - m.right) / labels.length;
-    const rotate = band < 46;  // узкий экран — подписи диапазонов наклоняем
-    m.bottom = (rotate ? 58 : 30) + 18;
-    const H = m.top + plotH + m.bottom;
+export function renderDonut(host, { parts, selected, onSelect }) {
+    const total = sum(parts.map((p) => p.value));
+    const S = 180;
+    const c = S / 2;
+    const R = 86;
+    const r = 56;
 
-    const ticks = niceTicks(Math.max(0, ...series.flatMap((s) => s.values)));
-    const top = ticks.at(-1);
-    const y = (v) => m.top + plotH - (v / top) * plotH;
+    const wrap = el('div', { class: 'donut' });
+    const svg = svgEl('svg', { viewBox: `0 0 ${S} ${S}`, width: S, height: S, role: 'img', 'aria-label': 'Доли аварий по категориям' }, wrap);
 
-    const gap = 2;
-    const barW = Math.min(24, (band * 0.7 - gap * (series.length - 1)) / series.length);
-    const groupW = barW * series.length + gap * (series.length - 1);
-    const showCaps = barW >= 14;  // подпись над столбцом, только если помещается
-
-    const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': axisTitle });
-
-    for (const t of ticks) {
-        svgEl('line', { class: t === 0 ? 'base' : 'grid', x1: m.left, x2: W - m.right, y1: y(t), y2: y(t) }, svg);
-        svgEl('text', { x: m.left - 6, y: y(t) + 4, 'text-anchor': 'end' }, svg).textContent = fmt.format(t);
+    if (total === 0) {
+        svgEl('circle', { cx: c, cy: c, r: (R + r) / 2, fill: 'none', stroke: 'var(--grid)', 'stroke-width': R - r }, svg);
     }
-
-    labels.forEach((label, i) => {
-        const x0 = m.left + band * i;
-        const g = svgEl('g', {
-            class: 'col',
-            tabindex: 0,
-            'aria-label': `${label}: ` + series.map((s) => `${s.label} — ${s.values[i]}`).join(', '),
-        }, svg);
-        svgEl('rect', { class: 'hit', x: x0, y: m.top, width: band, height: plotH, rx: 4 }, g);
-
-        series.forEach((s, k) => {
-            const v = s.values[i];
-            if (v <= 0) return;
-            const bx = x0 + (band - groupW) / 2 + k * (barW + gap);
-            svgEl('path', { class: s.cls, d: columnPath(bx, y(v), barW, y(0) - y(v), 4) }, g);
-            if (showCaps) {
-                svgEl('text', { class: 'cap', x: bx + barW / 2, y: y(v) - 4 }, g).textContent = fmt.format(v);
-            }
-        });
-
-        const tx = x0 + band / 2;
-        const ty = m.top + plotH + 16;
-        svgEl('text', rotate
-            ? { x: tx + 4, y: ty, 'text-anchor': 'end', transform: `rotate(-40 ${tx + 4} ${ty})` }
-            : { x: tx, y: ty, 'text-anchor': 'middle' }, svg).textContent = label;
-
-        bindTip(g, () => ({ title: label, rows: series.map((s) => ({ label: s.label, cls: s.cls, value: s.values[i] })) }));
+    let a = 0;
+    parts.forEach((p, i) => {
+        if (!p.value) return;
+        const a1 = a + (p.value / total) * 2 * Math.PI;
+        // целое кольцо рисуем двумя половинами: дуга в 360° вырождается
+        const d = p.value === total ? arc(c, R, r, 0, Math.PI) + arc(c, R, r, Math.PI, 2 * Math.PI) : arc(c, R, r, a, a1);
+        const slice = svgEl('path', { d, fill: p.color, class: p.value === total ? 'slice full' : 'slice' }, svg);
+        if (selected !== null && selected !== i) slice.classList.add('dim');
+        // номер категории на секторе — чтобы категории различались не только цветом
+        if (a1 - a >= 0.35) {
+            const mid = (a + a1) / 2;
+            const num = svgEl('text', {
+                class: 'slice-num', x: c + ((R + r) / 2) * Math.sin(mid), y: c - ((R + r) / 2) * Math.cos(mid) + 4, fill: inkFor(p.color),
+            }, svg);
+            num.textContent = String(i + 1);
+            if (selected !== null && selected !== i) num.classList.add('dim');
+        }
+        slice.addEventListener('click', () => onSelect(i));
+        bindTip(slice, () => ({
+            title: `${p.label} · ${p.sub}`,
+            rows: [{ value: p.value, label: `${plural(p.value, ['авария', 'аварии', 'аварий'])} · ${pct.format(p.value / total)}`, color: p.color }],
+        }));
+        a = a1;
     });
 
-    svgEl('text', { x: m.left + (W - m.left - m.right) / 2, y: H - 4, 'text-anchor': 'middle' }, svg).textContent = axisTitle;
-    host.replaceChildren(svg);
+    // в центре — всего аварий или число в выбранной категории
+    const shown = selected === null ? total : parts[selected].value;
+    svgEl('text', { x: c, y: c + 4, class: 'donut-value' }, svg).textContent = fmt.format(shown);
+    svgEl('text', { x: c, y: c + 24, class: 'donut-label' }, svg).textContent = selected === null
+        ? plural(total, ['авария', 'аварии', 'аварий'])
+        : `категория ${selected + 1}${total ? ' · ' + pct.format(shown / total) : ''}`;
+
+    const legend = el('div', { class: 'donut-legend' }, wrap);
+    parts.forEach((p, i) => {
+        const row = el('button', { type: 'button', class: 'legend-row', 'aria-pressed': String(selected === i) }, legend);
+        if (selected !== null && selected !== i) row.classList.add('dim');
+        el('span', { class: 'key', style: `background: ${p.color}` }, row);
+        el('span', {}, row, p.label);
+        el('span', { class: 'muted' }, row, p.sub);
+        el('span', { class: 'legend-value' }, row, fmt.format(p.value));
+        el('span', { class: 'muted legend-pct' }, row, total ? pct.format(p.value / total) : '—');
+        row.addEventListener('click', () => onSelect(i));
+    });
+
+    host.replaceChildren(wrap);
 }
 
-// ---------- горизонтальные бары по сервисам (HTML) ----------
+// ---------- полосы по сервисам ----------
 
-export function renderServiceBars(host, rows, series) {
-    if (!rows.length) {
-        host.replaceChildren(el('p', { class: 'empty' }, null, 'Нет данных'));
+/**
+ * items: [{ name, parts: [кол-во в категории 1..4] }]. Полоса сервиса разбита на цвета категорий;
+ * если категория выбрана — показывается только она. max — общий масштаб для сравнения карточек.
+ */
+export function renderServiceBars(host, { items, colors, selected, max }) {
+    const shown = items
+        .map((it) => ({ ...it, value: selected === null ? sum(it.parts) : it.parts[selected] }))
+        .filter((it) => it.value > 0)
+        .sort((x, y) => y.value - x.value);
+
+    if (!shown.length) {
+        host.replaceChildren(el('p', { class: 'empty' }, null, 'Аварий нет'));
         return;
     }
-    const totals = rows.map((r) => series.map((s) => sum(r.counts[s.id])));
-    const max = Math.max(1, ...totals.flat());
     const list = el('div', { class: 'bars' });
-    let category = null;
-    let operation = null;
-
-    rows.forEach((r, i) => {
-        if (r.category_id !== category) {
-            category = r.category_id;
-            operation = null;
-            el('div', { class: 'bars-cat' }, list, r.category);
-        }
-        if (r.operation_id !== operation) {
-            operation = r.operation_id;
-            el('div', { class: 'bars-op' }, list, (r.operation_num !== null ? `№ ${r.operation_num} · ` : '') + r.operation);
-        }
+    for (const it of shown) {
         const row = el('div', { class: 'bars-row' }, list);
-        el('div', { class: 'bars-label' }, row, r.service);
-        const track = el('div', { class: 'bars-track' }, row);
-        series.forEach((s, k) => {
-            const v = totals[i][k];
-            const line = el('div', { class: 'bar-line', 'aria-label': `${s.label}: ${v}` }, track);
-            // место под подпись значения у конца бара вычитаем из доступной ширины
-            el('span', { class: `bar ${s.cls}`, style: `width: calc((100% - 3em) * ${v / max})` }, line);
-            el('span', { class: v ? 'bar-val' : 'bar-val zero' }, line, fmt.format(v));
+        el('div', {}, row, it.name);
+        const line = el('div', { class: 'bar-line' }, row);
+        const bar = el('div', { class: 'bar', style: `width: calc((100% - 3em) * ${it.value / max})` }, line);
+        it.parts.forEach((v, i) => {
+            if (!v || (selected !== null && selected !== i)) return;
+            const seg = el('span', { style: `flex-grow: ${v}; background: ${colors[i]}` }, bar);
+            bindTip(seg, () => ({ title: it.name, rows: [{ value: v, label: `категория ${i + 1}`, color: colors[i] }] }));
         });
-    });
+        el('span', { class: 'bar-value' }, line, fmt.format(it.value));
+    }
     host.replaceChildren(list);
 }
 
-// ---------- тепловые карты «сервис × диапазон» (HTML-таблицы) ----------
+// ---------- таблица как в Excel ----------
 
-const LEVELS = 5;
-
-export function renderHeatmaps(host, scaleHost, rows, labels, series) {
-    if (!rows.length) {
-        host.replaceChildren(el('p', { class: 'empty' }, null, 'Нет данных'));
-        scaleHost.replaceChildren();
-        return;
+/** Поэлементная сумма значений по метрикам: { metricId: [по диапазонам] } */
+function sumCounts(rows, metrics, size) {
+    const out = {};
+    for (const m of metrics) {
+        out[m.id] = Array(size).fill(0);
+        for (const r of rows) r.counts[m.id].forEach((v, i) => { out[m.id][i] += v; });
     }
-    // общая шкала для всех метрик, чтобы карты можно было сравнивать
-    const max = Math.max(0, ...rows.flatMap((r) => series.flatMap((s) => r.counts[s.id])));
-    const level = (v) => (v <= 0 ? 0 : max <= 1 ? LEVELS : 1 + Math.round(((v - 1) / (max - 1)) * (LEVELS - 1)));
+    return out;
+}
 
-    const figures = series.map((s) => {
-        const fig = el('figure', { class: 'heatmap' });
-        const cap = el('figcaption', {}, fig);
-        el('span', { class: `key ${s.cls}` }, cap);
-        cap.append(s.label);
+function groupBy(rows, key) {
+    const map = new Map();
+    for (const r of rows) {
+        if (!map.has(key(r))) map.set(key(r), []);
+        map.get(key(r)).push(r);
+    }
+    return [...map.values()];
+}
 
-        const table = el('table', {}, el('div', { class: 'table-wrap' }, fig));
-        const head = el('tr', {}, el('thead', {}, table));
-        el('th', { scope: 'col', class: 'rowhead' }, head, 'Сервис');
-        labels.forEach((l) => el('th', { scope: 'col' }, head, l));
-        el('th', { scope: 'col' }, head, 'Итого');
+/**
+ * Строки сервисов с подытогами по категориям операций. Ячейка окрашена цветом категории аварии
+ * своего диапазона: ненулевые — полным цветом, нулевые — бледным оттенком.
+ */
+export function renderTable(host, { metrics, buckets, rows, bucketSev, colors, selected }) {
+    const paint = (cell, v, bi) => {
+        const color = colors[bucketSev[bi]];
+        cell.style.backgroundColor = v ? color : tint(color, 0.16);
+        cell.style.color = v ? inkFor(color) : 'var(--muted)';
+        if (selected !== null && bucketSev[bi] !== selected) cell.classList.add('dim');
+    };
+    const valueCells = (tr, counts) => metrics.forEach((m, mi) => counts[m.id].forEach((v, bi) => {
+        paint(el('td', { class: bi === 0 && mi > 0 ? 'gap' : '' }, tr, fmt.format(v)), v, bi);
+    }));
 
-        const body = el('tbody', {}, table);
-        const colTotals = labels.map(() => 0);
-        let group = null;
-        for (const r of rows) {
-            const g = `${r.category_id}/${r.operation_id}`;
-            if (g !== group) {
-                group = g;
-                el('th', { colspan: labels.length + 2, scope: 'rowgroup' }, el('tr', { class: 'grp' }, body), `${r.category} · ${r.operation}`);
-            }
-            const tr = el('tr', {}, body);
-            el('th', { scope: 'row', class: 'rowhead' }, tr, r.service);
-            r.counts[s.id].forEach((v, i) => {
-                colTotals[i] += v;
-                const td = el('td', { 'data-v': v, 'data-i': i }, tr, v ? fmt.format(v) : null);
-                if (v) td.className = `h${level(v)}`;
-                else el('span', { class: 'sr' }, td, '0');
-                td.dataset.service = r.service;
+    const table = el('table', { class: 'grid' });
+    const head1 = el('tr', {}, el('thead', {}, table));
+    for (const title of ['№', 'Операция', 'Сервис']) el('th', { rowspan: 2, class: 'name' }, head1, title);
+    metrics.forEach((m, mi) => el('th', { colspan: buckets.length, class: mi > 0 ? 'metric gap' : 'metric' }, head1, `${m.label} · деградация, %`));
+    const head2 = el('tr', {}, table.tHead);
+    metrics.forEach((m, mi) => buckets.forEach((b, bi) => {
+        const th = el('th', { class: bi === 0 && mi > 0 ? 'bucket gap' : 'bucket' }, head2, `${b.pct_from}–${b.pct_to}`);
+        const color = colors[bucketSev[bi]];
+        th.style.backgroundColor = color;
+        th.style.color = inkFor(color);
+        if (selected !== null && bucketSev[bi] !== selected) th.classList.add('dim');
+    }));
+
+    const body = el('tbody', {}, table);
+    const total = el('tr', { class: 'sum' }, body);
+    el('td', { colspan: 3, class: 'name' }, total, 'Всего');
+    valueCells(total, sumCounts(rows, metrics, buckets.length));
+
+    for (const catRows of groupBy(rows, (r) => r.category_id)) {
+        const cat = el('tr', { class: 'sum' }, body);
+        el('td', { colspan: 3, class: 'name' }, cat, catRows[0].category);
+        valueCells(cat, sumCounts(catRows, metrics, buckets.length));
+
+        for (const opRows of groupBy(catRows, (r) => r.operation_id)) {
+            opRows.forEach((r, i) => {
+                const tr = el('tr', {}, body);
+                if (i === 0) {
+                    el('td', { rowspan: opRows.length }, tr, String(r.operation_num));
+                    el('td', { rowspan: opRows.length, class: 'name' }, tr, r.operation);
+                }
+                el('td', { class: 'name' }, tr, r.service);
+                valueCells(tr, r.counts);
             });
-            el('td', { class: 'total' }, tr, fmt.format(sum(r.counts[s.id])));
-        }
-
-        const foot = el('tr', {}, el('tfoot', {}, table));
-        el('th', { scope: 'row' }, foot, 'Итого');
-        colTotals.forEach((v) => el('td', {}, foot, fmt.format(v)));
-        el('td', {}, foot, fmt.format(sum(colTotals)));
-
-        // одна подсказка на таблицу через делегирование событий
-        table.addEventListener('pointermove', (e) => {
-            const td = e.target.closest('td[data-i]');
-            if (!td) return hideTip();
-            showTip(td.dataset.service, [{ label: `${labels[td.dataset.i]} · ${s.label}`, cls: s.cls, value: Number(td.dataset.v) }], e.clientX, e.clientY);
-        });
-        table.addEventListener('pointerleave', hideTip);
-        return fig;
-    });
-    host.replaceChildren(...figures);
-
-    // легенда шкалы: каждое значение, если их мало, иначе ступени с границами
-    scaleHost.replaceChildren();
-    el('span', {}, scaleHost, 'Случаев в ячейке:');
-    el('span', { class: 'sw', style: 'background: var(--wash)' }, scaleHost, '0');
-    if (max <= LEVELS * 2) {
-        for (let v = 1; v <= max; v++) el('span', { class: `sw h${level(v)}` }, scaleHost, fmt.format(v));
-    } else {
-        for (let k = 1; k <= LEVELS; k++) {
-            const from = Math.ceil(1 + ((k - 1.5) / (LEVELS - 1)) * (max - 1));
-            el('span', { class: `sw h${k}` }, scaleHost, `${fmt.format(Math.max(1, from))}+`);
         }
     }
+    host.replaceChildren(table);
 }

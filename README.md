@@ -31,6 +31,6 @@ compose.yaml, Dockerfile     PostgreSQL (ru_RU, ICU) + Adminer + php + nginx
 db/                          схема и демо-данные
 docker/php/Dockerfile        php-fpm с pdo_pgsql
 docker/nginx/default.conf    статика из public/, /api/* -> src/api.php
-src/api.php                  JSON API: /api/meta, /api/dashboard?category=ID
+src/api.php                  JSON API: GET /api/data — все данные одним ответом
 public/                      index.html, style.css, app.js, charts.js
 ```

@@ -5,8 +5,7 @@ declare(strict_types=1);
 /*
  * JSON API дашборда. nginx направляет сюда все запросы /api/*.
  *
- *   GET /api/meta                    метрики, диапазоны, категории
- *   GET /api/dashboard[?category=ID] KPI, распределение по диапазонам, значения по сервисам
+ *   GET /api/data  метрики, диапазоны, категории операций и значения по сервисам
  */
 
 function db(): PDO
@@ -19,11 +18,9 @@ function db(): PDO
     ]);
 }
 
-function query(PDO $pdo, string $sql, array $params = []): array
+function query(PDO $pdo, string $sql): array
 {
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute($params);
-    return $stmt->fetchAll();
+    return $pdo->query($sql)->fetchAll();
 }
 
 function respond(int $status, array $body): never
@@ -35,59 +32,20 @@ function respond(int $status, array $body): never
     exit;
 }
 
-function meta(PDO $pdo): array
+function data(PDO $pdo): array
 {
-    return [
-        'metrics' => query($pdo, 'SELECT id, name FROM metric ORDER BY id'),
-        'buckets' => query($pdo, 'SELECT id, label, pct_from, pct_to FROM bucket ORDER BY id'),
-        'categories' => query($pdo, 'SELECT id, name FROM category ORDER BY id'),
-    ];
-}
-
-/** $categoryId = null — по всем категориям. «Глубокая» деградация — диапазоны выше 50% */
-function dashboard(PDO $pdo, ?int $categoryId): array
-{
-    $where = '';
-    $params = [];
-    if ($categoryId !== null) {
-        if (!query($pdo, 'SELECT 1 FROM category WHERE id = ?', [$categoryId])) {
-            respond(404, ['error' => 'Категория не найдена']);
-        }
-        $where = 'WHERE o.category_id = :cat';
-        $params = ['cat' => $categoryId];
-    }
-
-    $from = "FROM degradation d
-             JOIN service s   ON s.id = d.service_id
-             JOIN operation o ON o.id = s.operation_id
-             JOIN category c  ON c.id = o.category_id
-             JOIN bucket b    ON b.id = d.bucket_id
-             {$where}";
-
-    $kpi = query($pdo, "
-        SELECT d.metric_id,
-               SUM(d.cnt)                                             AS total,
-               COUNT(DISTINCT d.service_id) FILTER (WHERE d.cnt > 0)  AS services_affected,
-               COALESCE(SUM(d.cnt) FILTER (WHERE b.pct_from > 50), 0) AS severe
-        {$from}
-        GROUP BY d.metric_id
-        ORDER BY d.metric_id", $params);
-
-    $byBucket = query($pdo, "
-        SELECT d.metric_id, d.bucket_id, SUM(d.cnt) AS cnt
-        {$from}
-        GROUP BY d.metric_id, d.bucket_id
-        ORDER BY d.metric_id, d.bucket_id", $params);
-
     // по строке на сервис и метрику: значения по диапазонам одним массивом, как строка в Excel
-    $cells = query($pdo, "
+    $cells = query($pdo, '
         SELECT c.id AS category_id, c.name AS category,
                o.id AS operation_id, o.num AS operation_num, o.name AS operation,
                s.id AS service_id, s.name AS service,
                d.metric_id, json_agg(d.cnt ORDER BY d.bucket_id) AS counts
-        {$from}
+        FROM degradation d
+                 JOIN service s   ON s.id = d.service_id
+                 JOIN operation o ON o.id = s.operation_id
+                 JOIN category c  ON c.id = o.category_id
         GROUP BY c.id, o.id, s.id, d.metric_id
-        ORDER BY c.id, o.num, s.id, d.metric_id", $params);
+        ORDER BY c.id, o.num, s.id, d.metric_id');
 
     $rows = [];
     foreach ($cells as $cell) {
@@ -106,25 +64,18 @@ function dashboard(PDO $pdo, ?int $categoryId): array
     }
 
     return [
-        'services_total' => count($rows),
-        'kpi' => $kpi,
-        'by_bucket' => $byBucket,
+        'metrics' => query($pdo, 'SELECT id, name FROM metric ORDER BY id'),
+        'buckets' => query($pdo, 'SELECT id, label, pct_from, pct_to FROM bucket ORDER BY id'),
+        'categories' => query($pdo, 'SELECT id, name FROM category ORDER BY id'),
         'rows' => array_values($rows),
     ];
 }
 
 $route = trim(preg_replace('#^/api#', '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)), '/');
-$category = $_GET['category'] ?? '';
-
-if ($category !== '' && (!is_string($category) || !ctype_digit($category))) {
-    respond(400, ['error' => 'Параметр category должен быть целым числом']);
-}
 
 try {
-    $pdo = db();
     match ($route) {
-        'meta' => respond(200, meta($pdo)),
-        'dashboard' => respond(200, dashboard($pdo, $category === '' ? null : (int) $category)),
+        'data' => respond(200, data(db())),
         default => respond(404, ['error' => 'Неизвестный метод API']),
     };
 } catch (PDOException $e) {

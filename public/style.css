@@ -1,175 +1,155 @@
-:root {
-    color-scheme: light;
-    --page: #f9f9f7;
-    --surface: #fcfcfb;
-    --text: #0b0b0b;
-    --text-2: #52514e;
-    --muted: #898781;
-    --grid: #e1e0d9;
-    --axis: #c3c2b7;
-    --border: rgba(11, 11, 11, .10);
-    --wash: rgba(11, 11, 11, .05);
-    --ink-dark: #0b0b0b;
-    --ink-light: #ffffff;
-
-    /* категориальные цвета серий (метрик), фиксированный порядок */
-    --series-1: #2a78d6;
-    --series-2: #eb6834;
-    --series-3: #1baf7a;
-    --series-4: #eda100;
-
-    /* последовательная шкала тепловой карты: мало -> много, и цвет текста на ней */
-    --h1: #86b6ef; --h1-ink: var(--ink-dark);
-    --h2: #5598e7; --h2-ink: var(--ink-dark);
-    --h3: #2a78d6; --h3-ink: var(--ink-dark);
-    --h4: #1c5cab; --h4-ink: var(--ink-light);
-    --h5: #104281; --h5-ink: var(--ink-light);
+@font-face {
+    font-family: "Styrene A LC";
+    src: url("assets/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-display: swap;
 }
 
-@media (prefers-color-scheme: dark) {
-    :root {
-        color-scheme: dark;
-        --page: #0d0d0d;
-        --surface: #1a1a19;
-        --text: #ffffff;
-        --text-2: #c3c2b7;
-        --grid: #2c2c2a;
-        --axis: #383835;
-        --border: rgba(255, 255, 255, .10);
-        --wash: rgba(255, 255, 255, .06);
+@font-face {
+    font-family: "Styrene A LC";
+    src: url("assets/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
+    font-weight: 700;
+    font-display: swap;
+}
 
-        --series-1: #3987e5;
-        --series-2: #d95926;
-        --series-3: #199e70;
-        --series-4: #c98500;
+:root {
+    --bg: #ffffff;
+    --text: #0b0b0b;
+    --text-2: #5c5b57;
+    --line: #e6e5e0;
+    --wash: #f4f4f2;
 
-        /* в тёмной теме «мало» ближе к фону, «много» — светлее */
-        --h1: #184f95; --h1-ink: var(--ink-light);
-        --h2: #256abf; --h2-ink: var(--ink-light);
-        --h3: #3987e5; --h3-ink: var(--ink-dark);
-        --h4: #6da7ec; --h4-ink: var(--ink-dark);
-        --h5: #9ec5f4; --h5-ink: var(--ink-dark);
-    }
+    /* три размера шрифта на всю страницу */
+    --fs-l: 24px;  /* заголовок страницы, число в центре диаграммы */
+    --fs-m: 15px;  /* заголовки блоков и основной текст */
+    --fs-s: 12px;  /* подписи, шкала, таблица */
 }
 
 * { box-sizing: border-box; }
 
 body {
     margin: 0 auto;
-    max-width: 1200px;
+    max-width: 1280px;
     padding: 16px;
-    background: var(--page);
+    background: var(--bg);
     color: var(--text);
-    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 400 var(--fs-m)/1.4 "Styrene A LC", system-ui, sans-serif;
 }
 
-h1 { margin: 0 0 4px; font-size: 22px; }
-h2 { margin: 0 0 2px; font-size: 16px; }
+/* Bold — только заголовки */
+h1, h2, h3, th, .sev-name { font-weight: 700; }
+h1 { margin: 0 0 4px; font-size: var(--fs-l); }
+h2 { margin: 0 0 4px; font-size: var(--fs-m); }
+h3 { margin: 16px 0 6px; font-size: var(--fs-m); }
 p { margin: 0; }
 .muted { color: var(--text-2); }
+.small { font-size: var(--fs-s); }
+button, select, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
 
-.filters { display: flex; gap: 16px; align-items: center; margin: 16px 0; }
-select { font: inherit; padding: 4px 8px; margin-left: 6px; }
-
-.error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid #d03b3b; border-radius: 6px; }
-
-/* minmax(0, …) — чтобы широкие таблицы прокручивались внутри карточки, а не растягивали страницу */
-main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; transition: opacity .15s; }
-main.loading { opacity: .5; }
-
-.card, .kpi {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 16px;
-    min-width: 0;
+.filters { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 16px 0; }
+select { padding: 4px 8px; margin-left: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg);
 }
+.chip[aria-checked="true"] { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
 
-/* --- KPI --- */
-.kpis { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
-.kpi-label { color: var(--text-2); display: flex; align-items: center; gap: 6px; }
-.kpi-value { font-size: 34px; font-weight: 600; line-height: 1.2; margin-top: 6px; }
-.kpi-sub { color: var(--text-2); }
-.kpi-meta { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--grid); display: grid; gap: 4px; }
-.kpi-meta div { display: flex; justify-content: space-between; gap: 8px; }
-.kpi-meta dt { color: var(--text-2); }
-.kpi-meta dd { margin: 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid #ef3124; border-radius: 8px; }
 
-/* --- легенда и ключи серий --- */
-.legend { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 10px 0 4px; color: var(--text-2); }
-.legend span { display: inline-flex; align-items: center; gap: 6px; }
-.key { display: inline-block; width: 10px; height: 10px; border-radius: 2px; flex: none; }
-.s1 { background: var(--series-1); fill: var(--series-1); }
-.s2 { background: var(--series-2); fill: var(--series-2); }
-.s3 { background: var(--series-3); fill: var(--series-3); }
-.s4 { background: var(--series-4); fill: var(--series-4); }
+/* minmax(0, …) — чтобы широкая таблица прокручивалась внутри карточки, а не растягивала страницу */
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 
-/* --- столбчатая диаграмма (SVG) --- */
-.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.chart text { font-size: 11px; fill: var(--muted); font-variant-numeric: tabular-nums; }
-.chart text.cap { fill: var(--text-2); text-anchor: middle; }
-.chart .grid { stroke: var(--grid); }
-.chart .base { stroke: var(--axis); }
-.chart .hit { fill: transparent; }
-.chart .col:hover .hit, .chart .col:focus-visible .hit { fill: var(--wash); }
-.chart .col:focus { outline: none; }
+.card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
+.card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.card-head button { padding: 4px 12px; border: 1px solid var(--line); border-radius: 8px; background: none; }
 
-/* --- горизонтальные бары по сервисам (HTML) --- */
-.bars { margin-top: 8px; }
-.bars-cat { font-weight: 600; margin: 14px 0 2px; }
-.bars-cat:first-child { margin-top: 4px; }
-.bars-op { color: var(--muted); font-size: 12px; margin: 6px 0 2px; }
-.bars-row { display: grid; grid-template-columns: minmax(90px, 160px) 1fr; gap: 12px; align-items: center; padding: 3px 0; }
-.bars-label { overflow-wrap: anywhere; }
-.bars-track { display: grid; gap: 2px; }
-.bar-line { display: flex; align-items: center; gap: 6px; height: 12px; }
-.bar { display: block; height: 10px; border-radius: 0 4px 4px 0; flex: none; }
-.bar-val { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; }
-.bar-val.zero { color: var(--muted); }
+.key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.dim { opacity: .25; }
+.empty { color: var(--text-2); padding: 12px 0; }
 
-/* --- тепловые карты (таблицы) --- */
-.heatmaps { display: grid; gap: 16px 24px; margin-top: 12px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 520px), 1fr)); }
-.heatmap { margin: 0; min-width: 0; }
-.heatmap figcaption { display: flex; align-items: center; gap: 6px; font-weight: 600; margin-bottom: 6px; }
-/* position: relative — чтобы абсолютные .sr внутри ячеек не вылезали за прокручиваемую область */
-.table-wrap { overflow-x: auto; position: relative; }
-.heatmap table { border-collapse: separate; border-spacing: 2px; width: 100%; font-variant-numeric: tabular-nums; }
-.heatmap th, .heatmap td { padding: 0 4px; height: 28px; font-size: 12px; text-align: center; white-space: nowrap; }
-.heatmap thead th { color: var(--muted); font-weight: 400; font-size: 11px; }
-.heatmap .rowhead { text-align: left; font-weight: 400; color: var(--text-2); }
-.heatmap tr.grp th { text-align: left; color: var(--muted); font-weight: 400; font-size: 11px; padding-top: 6px; height: auto; }
-/* нулевая специфичность, чтобы классы шкалы .h1–.h5 перекрывали фон пустой ячейки */
-:where(.heatmap td) { min-width: 34px; border-radius: 3px; background: var(--wash); }
-.heatmap td.total, .heatmap tfoot td { background: none; color: var(--text-2); font-weight: 600; }
-.heatmap tfoot th { text-align: left; color: var(--text-2); }
-.h1 { background: var(--h1); color: var(--h1-ink); }
-.h2 { background: var(--h2); color: var(--h2-ink); }
-.h3 { background: var(--h3); color: var(--h3-ink); }
-.h4 { background: var(--h4); color: var(--h4-ink); }
-.h5 { background: var(--h5); color: var(--h5-ink); }
-.heatmap td[data-v]:hover { outline: 2px solid var(--text-2); outline-offset: -2px; }
+/* --- шкала категорий: цветные отрезки с номерами и три ползунка поверх --- */
+.range { position: relative; height: 40px; margin-top: 16px; }
+/* отступ = половина ширины ползунка: центр ползунка ходит от 8px до (ширина − 8px) */
+.range-track { position: absolute; left: 8px; right: 8px; top: 8px; height: 24px; display: flex; gap: 2px; }
+.range-track span {
+    flex-basis: 0; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center; font-size: var(--fs-s);
+}
+.range input {
+    position: absolute; inset: 0; width: 100%; height: 40px; margin: 0;
+    background: none; pointer-events: none; -webkit-appearance: none; appearance: none;
+}
+.range input::-webkit-slider-runnable-track { height: 40px; background: none; }
+.range input::-moz-range-track { background: none; }
+.range input::-webkit-slider-thumb {
+    -webkit-appearance: none; pointer-events: auto; cursor: ew-resize;
+    width: 16px; height: 40px; border-radius: 6px; border: 2px solid var(--text); background: var(--bg);
+}
+.range input::-moz-range-thumb {
+    pointer-events: auto; cursor: ew-resize; box-sizing: border-box;
+    width: 16px; height: 40px; border-radius: 6px; border: 2px solid var(--text); background: var(--bg);
+}
+.range input:focus-visible { outline: none; }
+.range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--line); }
+.range-scale { position: relative; height: 16px; margin: 4px 8px 0; font-size: var(--fs-s); color: var(--text-2); }
+.range-scale span { position: absolute; transform: translateX(-50%); }
 
-.scale { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 12px; color: var(--text-2); font-size: 12px; }
-.scale .sw { display: inline-flex; align-items: center; justify-content: center; min-width: 26px; height: 18px; border-radius: 3px; font-variant-numeric: tabular-nums; }
+.sev-tiles { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.sev-tile { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.sev-tile input[type="color"] { width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; flex: none; }
+.sev-tile input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.sev-tile input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
+.sev-tile input[type="color"]::-moz-color-swatch { border: 0; border-radius: 8px; }
+.sev-edit { display: block; margin-top: 4px; color: var(--text-2); }
+.sev-edit input { width: 4.5em; padding: 2px 4px; }
 
-.empty { color: var(--muted); padding: 24px 0; text-align: center; }
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+/* --- кольцевые диаграммы --- */
+.pies { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); }
+.donut { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 12px; }
+.donut svg { flex: none; }
+.donut .slice { stroke: var(--bg); stroke-width: 2px; cursor: pointer; transition: opacity .15s; }
+.donut .slice.full { stroke: none; }
+.donut .slice:hover { opacity: .85; }
+.donut .slice-num { font-size: var(--fs-s); text-anchor: middle; pointer-events: none; }
+.donut-value { font-size: var(--fs-l); font-weight: 700; fill: var(--text); text-anchor: middle; }
+.donut-label { font-size: var(--fs-s); fill: var(--text-2); text-anchor: middle; }
+.donut-legend { flex: 1; min-width: 240px; display: grid; gap: 2px; }
+.legend-row {
+    display: grid; grid-template-columns: 10px 1fr auto 2em 3.4em; gap: 8px; align-items: center;
+    padding: 6px 8px; border: 0; border-radius: 8px; background: none; text-align: left;
+    font-variant-numeric: tabular-nums; transition: opacity .15s;
+}
+.legend-row:hover, .legend-row[aria-pressed="true"] { background: var(--wash); }
+.legend-value, .legend-pct { text-align: right; }
+
+/* --- полосы по сервисам --- */
+.bars-row { display: grid; grid-template-columns: minmax(80px, 110px) 1fr; gap: 12px; align-items: center; padding: 3px 0; }
+.bar-line { display: flex; align-items: center; gap: 6px; }
+.bar { display: flex; gap: 2px; height: 12px; border-radius: 0 4px 4px 0; overflow: hidden; flex: none; }
+.bar span { flex-basis: 0; min-width: 3px; }
+.bar-value { font-size: var(--fs-s); color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* --- таблица --- */
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+.grid { border-collapse: separate; border-spacing: 2px; font-size: var(--fs-s); font-variant-numeric: tabular-nums; }
+.grid th, .grid td { padding: 4px; text-align: center; white-space: nowrap; border-radius: 4px; transition: opacity .15s; }
+.grid .name { text-align: left; padding: 4px 6px; }
+.grid th.name, .grid th.metric, .grid tr.sum td.name { background: var(--wash); }
+.grid tr.sum td.name { font-weight: 700; }
+/* подписи диапазонов — обычным начертанием: так 20 столбцов помещаются в ширину страницы */
+.grid th.bucket { font-weight: 400; min-width: 36px; }
+/* разрыв между двумя метриками, как между половинами таблицы в Excel */
+.grid .gap { border-left: 10px solid var(--bg); background-clip: padding-box; }
 
 /* --- подсказка --- */
 .tooltip {
-    position: fixed;
-    z-index: 10;
-    pointer-events: none;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, .12);
-    padding: 8px 10px;
-    font-size: 12px;
-    max-width: 280px;
+    position: fixed; z-index: 10; pointer-events: none; max-width: 280px;
+    background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .12); padding: 8px 10px; font-size: var(--fs-s);
 }
 .tip-title { color: var(--text-2); margin-bottom: 4px; }
 .tip-row { display: flex; align-items: center; gap: 6px; }
-.tip-row strong { font-size: 13px; font-variant-numeric: tabular-nums; }
-.tip-row .tip-key { width: 12px; height: 2px; border-radius: 1px; }
+.tip-key { width: 12px; height: 3px; border-radius: 1px; }
 .tip-label { color: var(--text-2); }
