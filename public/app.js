@@ -1,4 +1,4 @@
-import { el, inkFor, renderDonut, renderServiceBars, renderTable, sum } from './charts.js';
+import { el, equalizeColumns, inkFor, renderDonut, renderServiceBars, renderTable, sum } from './charts.js';
 
 // Степени деградации (названия — по МУ по управлению авариями), границы — как цветовые зоны в исходном Excel:
 // минимальная — 0–20%, частичная — 21–50%, значительная — 51–80%, полная — 81–100%.
@@ -131,7 +131,9 @@ function buildControls() {
             });
             edit.append(' %');
         } else {
-            edit.append('100 %');
+            // у последней степени верхняя граница всегда 100 — поле только для вида, как у остальных плашек
+            el('input', { type: 'number', value: 100, readonly: '', tabindex: -1, 'aria-label': `Верхняя граница степени «${DEGREES[i]}», %` }, edit);
+            edit.append(' %');
         }
         return { color, range, num };
     });
@@ -223,22 +225,8 @@ function render() {
     const shownValue = (parts) => (selected === null ? sum(parts) : parts[selected]);
     const max = Math.max(1, ...items.flat().map((it) => shownValue(it.parts)));
 
-    $('pies').replaceChildren(...metrics.map((m, mi) => {
-        const card = el('section', { class: 'card' });
-        el('h2', {}, card, m.label);
-        const totals = [0, 1, 2, 3].map((k) => sum(items[mi].map((it) => it.parts[k])));
-        renderDonut(el('div', {}, card), {
-            parts: sevs.map((s, k) => ({ label: s.name, short: s.short, sub: rangeText(s), value: totals[k], color: s.color })),
-            selected,
-            onSelect: select,
-        });
-        el('h3', {}, card, selected === null ? 'Сервисы' : `Сервисы · ${sevs[selected].name.toLowerCase()} деградация`);
-        renderServiceBars(el('div', {}, card), { items: items[mi], colors: settings.colors, names: DEGREES, selected, max });
-        return card;
-    }));
-
-    // в таблице — количество случаев по колонкам, как в Excel. Колонки общие для всех метрик, чтобы блоки
-    // таблицы совпадали столбец в столбец: склеиваются только колонки, пустые во всех метриках
+    // в таблицах — количество случаев по колонкам, как в Excel. Колонки общие для всех метрик, чтобы таблицы
+    // совпадали столбец в столбец: склеиваются только колонки, пустые во всех метриках
     const columns = compactColumns(tableColumns(), rows.flatMap((r) => metrics.flatMap((m) => r.pcts[m.id])));
     const tableRows = rows.map((r) => ({
         ...r,
@@ -247,7 +235,29 @@ function render() {
             columns.map((c) => r.pcts[m.id].filter((p) => p >= c.from && p <= c.to).length),
         ])),
     }));
-    renderTable($('table'), { metrics, columns, rows: tableRows, colors: settings.colors, selected });
+
+    // по карточке на метрику: слева сводка (кольцо, легенда, полосы сервисов), справа детализация (таблица)
+    $('metric-rows').replaceChildren(...metrics.map((m, mi) => {
+        const card = el('section', { class: 'card metric-card' });
+
+        const summary = el('div', { class: 'metric-summary' }, card);
+        el('h2', {}, summary, m.label);
+        const totals = [0, 1, 2, 3].map((k) => sum(items[mi].map((it) => it.parts[k])));
+        renderDonut(el('div', {}, summary), {
+            parts: sevs.map((s, k) => ({ label: s.name, short: s.short, sub: rangeText(s), value: totals[k], color: s.color })),
+            selected,
+            onSelect: select,
+        });
+        el('h3', {}, summary, selected === null ? 'Сервисы' : `Сервисы · ${sevs[selected].name.toLowerCase()} деградация`);
+        renderServiceBars(el('div', {}, summary), { items: items[mi], colors: settings.colors, names: DEGREES, selected, max });
+
+        const detail = el('div', { class: 'metric-detail' }, card);
+        el('div', { class: 'detail-title muted' }, detail, 'Детализация');
+        renderTable(el('div', { class: 'table-wrap' }, detail), { metric: m, columns, rows: tableRows, colors: settings.colors, selected });
+        return card;
+    }));
+    // таблицы уже на странице — выравниваем колонки диапазонов по ширине
+    document.querySelectorAll('#metric-rows table.grid').forEach(equalizeColumns);
 }
 
 function apply() {

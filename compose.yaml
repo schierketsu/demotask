@@ -2,7 +2,7 @@ services:
   db:
     build: .
     restart: always
-    shm_size: 128mb
+    shm_size: 128mb #размер общей памяти контейнера
     environment:
       POSTGRES_USER: postgres_admin
       POSTGRES_PASSWORD: example
@@ -14,6 +14,7 @@ services:
       - postgres_data:/var/lib/postgresql
       # схема и демо-данные загружаются автоматически при первом старте с пустым томом
       - ./db:/docker-entrypoint-initdb.d:ro
+      #ro - read-only, чтобы случайно не удалить init-скрипты из контейнера
     healthcheck:
       # -h 127.0.0.1: пока выполняются init-скрипты, postgres слушает только сокет, поэтому «готов» = данные загружены
       test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres_admin -d testdb"]

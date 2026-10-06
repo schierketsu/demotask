@@ -35,6 +35,9 @@ const rgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
 /** Полупрозрачный оттенок цвета — фон для нулевых ячеек */
 const tint = (hex, alpha) => `rgba(${rgb(hex).join(', ')}, ${alpha})`;
 
+/** Цвет, смешанный с белым; share — доля белого (0..1) */
+const lighten = (hex, share) => `#${rgb(hex).map((v) => Math.round(v + (255 - v) * share).toString(16).padStart(2, '0')).join('')}`;
+
 /** Тёмный или белый текст — что контрастнее на этом фоне */
 export function inkFor(hex) {
     const [r, g, b] = rgb(hex).map((v) => {
@@ -82,7 +85,8 @@ function arc(c, R, r, a0, a1) {
 }
 
 /**
- * parts: [{ label, short, sub, value, color }]; short — подпись на секторе; selected — индекс выбранной части или null;
+ * parts: [{ label, short, sub, value, color }]; label — название (в подсказках), short — подпись на секторе,
+ * sub — диапазон; selected — индекс выбранной части или null;
  * onSelect(i) вызывается по клику на сектор или строку легенды.
  */
 export function renderDonut(host, { parts, selected, onSelect }) {
@@ -96,7 +100,7 @@ export function renderDonut(host, { parts, selected, onSelect }) {
     const svg = svgEl('svg', { viewBox: `0 0 ${S} ${S}`, width: S, height: S, role: 'img', 'aria-label': 'Доли аварий по степеням деградации' }, wrap);
 
     if (total === 0) {
-        svgEl('circle', { cx: c, cy: c, r: (R + r) / 2, fill: 'none', stroke: 'var(--grid)', 'stroke-width': R - r }, svg);
+        svgEl('circle', { cx: c, cy: c, r: (R + r) / 2, fill: 'none', stroke: 'var(--line)', 'stroke-width': R - r }, svg);
     }
     let a = 0;
     parts.forEach((p, i) => {
@@ -130,15 +134,19 @@ export function renderDonut(host, { parts, selected, onSelect }) {
         ? plural(total, ['авария', 'аварии', 'аварий'])
         : (total ? pct.format(shown / total) : '');
 
+    // строка легенды: цвет, диапазон, количество, доля; название — во всплывающей подсказке и для экранного диктора
     const legend = el('div', { class: 'donut-legend' }, wrap);
     parts.forEach((p, i) => {
-        const row = el('button', { type: 'button', class: 'legend-row', 'aria-pressed': String(selected === i) }, legend);
+        const share = total ? pct.format(p.value / total) : '—';
+        const row = el('button', {
+            type: 'button', class: 'legend-row', 'aria-pressed': String(selected === i),
+            title: p.label, 'aria-label': `${p.label}, ${p.sub}: ${fmt.format(p.value)}, ${share}`,
+        }, legend);
         if (selected !== null && selected !== i) row.classList.add('dim');
         el('span', { class: 'key', style: `background: ${p.color}` }, row);
-        el('span', {}, row, p.label);
         el('span', { class: 'muted' }, row, p.sub);
         el('span', { class: 'legend-value' }, row, fmt.format(p.value));
-        el('span', { class: 'muted legend-pct' }, row, total ? pct.format(p.value / total) : '—');
+        el('span', { class: 'muted legend-pct' }, row, share);
         row.addEventListener('click', () => onSelect(i));
     });
 
@@ -190,42 +198,38 @@ function groupBy(rows, key) {
 }
 
 /**
- * Таблица как в Excel: по блоку на каждую метрику, один под другим. Блоки — части одной таблицы,
- * поэтому столбцы у них одинаковой ширины. columns: [{ from, to, sev }] — общие для всех метрик,
- * rows[].counts[metricId] — количество случаев по колонкам.
+ * Таблица одной метрики. columns: [{ from, to, sev }] — общие для всех метрик, поэтому таблицы разных метрик
+ * совпадают столбец в столбец; rows[].counts[metricId] — количество случаев по колонкам.
+ * Ячейка окрашена цветом степени своей колонки: ненулевые — чуть высветленным цветом с жирным числом,
+ * нулевые — бледным оттенком с серым нулём.
  */
-export function renderTable(host, { metrics, columns, rows, colors, selected }) {
-    const table = el('table', { class: 'grid' });
-    // колонки диапазонов — одинаковой ширины (см. .grid col.value), колонки №, операции и сервиса — по содержимому
-    const colgroup = el('colgroup', {}, table);
-    el('col', { span: 3 }, colgroup);
-    el('col', { span: columns.length, class: 'value' }, colgroup);
-
-    metrics.forEach((m, mi) => {
-        if (mi > 0) el('td', { colspan: columns.length + 3 }, el('tr', { class: 'spacer' }, el('tbody', {}, table)));
-        appendSection(table, m, mi === 0 ? 'thead' : 'tbody', columns, rows, colors, selected);
-    });
-    host.replaceChildren(table);
-}
-
-/** Блок одной метрики. Ячейка окрашена цветом степени своей колонки: ненулевые — полным цветом, нулевые — бледным оттенком */
-function appendSection(table, metric, headTag, columns, rows, colors, selected) {
+export function renderTable(host, { metric, columns, rows, colors, selected }) {
     const paint = (cell, v, c) => {
         const color = colors[c.sev];
-        cell.style.backgroundColor = v ? color : tint(color, 0.16);
-        cell.style.color = v ? inkFor(color) : 'var(--muted)';
+        if (v) {
+            const fill = lighten(color, 0.25);
+            cell.style.backgroundColor = fill;
+            cell.style.color = inkFor(fill);
+            cell.classList.add('nz');
+        } else {
+            cell.style.backgroundColor = tint(color, 0.16);
+            cell.style.color = 'var(--text-2)';
+        }
         if (selected !== null && c.sev !== selected) cell.classList.add('dim');
     };
     const valueCells = (tr, counts) => counts.forEach((v, bi) => paint(el('td', {}, tr, fmt.format(v)), v, columns[bi]));
     const sumCounts = (list) => columns.map((_, bi) => sum(list.map((r) => r.counts[metric.id][bi])));
 
-    const head = el(headTag, {}, table);
-    const head1 = el('tr', {}, head);
-    for (const title of ['№', 'Операция', 'Сервис']) el('th', { rowspan: 2, class: 'name' }, head1, title);
-    el('th', { colspan: columns.length, class: 'metric' }, head1, `${metric.label} · деградация, %`);
-    const head2 = el('tr', {}, head);
+    const table = el('table', { class: 'grid' });
+    // ширину колонкам задаёт equalizeColumns, когда таблица уже на странице
+    const colgroup = el('colgroup', {}, table);
+    for (let i = 0; i < 3; i++) el('col', { class: 'name-col' }, colgroup);
+    el('col', { span: columns.length }, colgroup);
+
+    const head = el('tr', {}, el('thead', {}, table));
+    for (const title of ['№', 'Операция', 'Сервис']) el('th', { class: 'name' }, head, title);
     for (const c of columns) {
-        const th = el('th', { class: 'bucket' }, head2, c.from === c.to ? String(c.from) : `${c.from}–${c.to}`);
+        const th = el('th', { class: 'bucket' }, head, c.from === c.to ? String(c.from) : `${c.from}–${c.to}`);
         const color = colors[c.sev];
         th.style.backgroundColor = color;
         th.style.color = inkFor(color);
@@ -254,4 +258,24 @@ function appendSection(table, metric, headTag, columns, rows, colors, selected) 
             });
         }
     }
+    host.replaceChildren(table);
+}
+
+const VALUE_COL_MIN = 56;  // px — шире самой длинной подписи диапазона («91–100»)
+
+/**
+ * Колонки диапазонов — строго одинаковой ширины. В обычной раскладке браузер раздаёт свободное место
+ * пропорционально содержимому, и колонки с длинной подписью выходят шире. Поэтому ширину колонок №, операции
+ * и сервиса берём такой, какой её только что посчитал браузер (по содержимому), и переключаем таблицу
+ * на фиксированную раскладку: там остаток ширины делится между колонками диапазонов поровну.
+ * Если места меньше, чем VALUE_COL_MIN на колонку, таблица не сжимается, а прокручивается.
+ * Вызывать, когда таблица уже на странице — иначе мерить нечего.
+ */
+export function equalizeColumns(table) {
+    const widths = [...table.querySelectorAll('thead th.name')].map((th) => th.getBoundingClientRect().width);
+    table.querySelectorAll('col.name-col').forEach((col, i) => { col.style.width = `${widths[i]}px`; });
+    const valueCount = table.querySelectorAll('thead th.bucket').length;
+    const spacing = parseFloat(getComputedStyle(table).borderSpacing) || 0;
+    table.style.minWidth = `${sum(widths) + valueCount * VALUE_COL_MIN + (valueCount + 4) * spacing}px`;
+    table.style.tableLayout = 'fixed';
 }

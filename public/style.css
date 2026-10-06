@@ -29,7 +29,7 @@
 
 body {
     margin: 0 auto;
-    max-width: 1280px;
+    max-width: 1440px;
     padding: 16px;
     background: var(--bg);
     color: var(--text);
@@ -172,9 +172,25 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 /* без системных стрелок: значение меняется вводом, клавишами ↑/↓ или ползунком на шкале */
 .sev-edit input { width: 5em; text-align: center; -moz-appearance: textfield; appearance: textfield; }
 .sev-edit input::-webkit-inner-spin-button, .sev-edit input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.sev-edit input[readonly] { cursor: default; }  /* «до 100 %» у последней степени — не редактируется */
+
+/* --- карточка метрики: слева сводка (кольцо, легенда, полосы сервисов), справа детализация (таблица),
+   между ними линия на всю высоту карточки; на узком экране — одно под другим.
+   450px — ровно столько, чтобы легенда стояла рядом с кольцом (кольцо 180 + зазор 20 + легенда ~205 + поля);
+   всё остальное место — таблице. Уже 1250px таблице не хватает места на 9 колонок без прокрутки --- */
+.metric-rows { display: grid; gap: 16px; }
+.metric-card { display: grid; grid-template-columns: 450px minmax(0, 1fr); padding: 0; }
+.metric-summary { min-width: 0; padding: 20px; border-right: 1px solid var(--line); }
+.metric-detail { min-width: 0; padding: 20px; }
+/* «Сервисы» отделены от кольца линией */
+.metric-summary h3 { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.detail-title { line-height: 21px; }  /* по высоте — как заголовок сводки слева */
+@media (max-width: 1250px) {
+    .metric-card { grid-template-columns: minmax(0, 1fr); }
+    .metric-summary { border-right: 0; border-bottom: 1px solid var(--line); }
+}
 
 /* --- кольцевые диаграммы --- */
-.pies { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr)); }
 .donut { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 12px; }
 .donut svg { flex: none; }
 .donut .slice { stroke: var(--bg); stroke-width: 2px; cursor: pointer; transition: opacity .15s; }
@@ -183,9 +199,10 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .donut .slice-num { font-size: var(--fs-s); text-anchor: middle; pointer-events: none; }
 .donut-value { font-size: var(--fs-l); font-weight: 700; fill: var(--text); text-anchor: middle; }
 .donut-label { font-size: var(--fs-s); fill: var(--text-2); text-anchor: middle; }
-.donut-legend { flex: 1; min-width: 240px; display: grid; gap: 2px; }
+/* строки легенды не переносятся; не помещается рядом с кольцом — легенда целиком уходит под него */
+.donut-legend { flex: 1; min-width: max-content; display: grid; gap: 2px; }
 .legend-row {
-    display: grid; grid-template-columns: 10px 1fr auto 2em 3.4em; gap: 8px; align-items: center;
+    display: grid; grid-template-columns: 10px 1fr 2em 3.4em; gap: 8px; align-items: center; white-space: nowrap;
     padding: 6px 8px; border: 0; border-radius: 8px; background: none; text-align: left;
     font-variant-numeric: tabular-nums; transition: opacity .15s;
 }
@@ -201,17 +218,16 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 
 /* --- таблица --- */
 .table-wrap { overflow-x: auto; margin-top: 12px; }
-/* одна таблица на всю ширину карточки, блоки метрик — один под другим, между ними пустая строка-отступ */
+/* таблица на всю ширину своей карточки */
 .grid { width: 100%; border-collapse: separate; border-spacing: 2px; font-size: var(--fs-s); font-variant-numeric: tabular-nums; }
-.grid tr.spacer td { height: 16px; padding: 0; }
 .grid th, .grid td { padding: 4px; text-align: center; white-space: nowrap; border-radius: 4px; transition: opacity .15s; }
 .grid .name { text-align: left; padding: 4px 6px; }
-/* колонки №, операции и сервиса — по содержимому; колонкам диапазонов — одинаковая базовая ширина,
-   свободное место браузер делит между ними поровну, поэтому все они одной ширины */
+/* колонки №, операции и сервиса — по содержимому (1% — «как можно уже»); равную ширину колонкам диапазонов
+   задаёт equalizeColumns в charts.js */
 .grid th.name { width: 1%; }
-.grid col.value { width: 56px; }
-.grid th.name, .grid th.metric, .grid tr.sum td.name { background: var(--wash); }
-.grid tr.sum td.name { font-weight: 700; }
+.grid th.name, .grid tr.sum td.name { background: var(--wash); }
+/* жирные: строки «Всего» и групп целиком, в остальных — ненулевые числа */
+.grid tr.sum td, .grid td.nz { font-weight: 700; }
 .grid th.bucket { font-weight: 400; min-width: 36px; }
 
 /* --- подсказка --- */

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types=1); //строгий режим (без приведения типов)
 
 /*
  * JSON API дашборда. nginx направляет сюда все запросы /api/*.
@@ -23,6 +23,7 @@ function query(PDO $pdo, string $sql): array
     return $pdo->query($sql)->fetchAll();
 }
 
+// never — функция не возвращается туда, откуда её вызвали: в конце exit завершает скрипт
 function respond(int $status, array $body): never
 {
     http_response_code($status);
@@ -34,54 +35,78 @@ function respond(int $status, array $body): never
 
 function data(PDO $pdo): array
 {
-    // по строке на сервис и метрику: проценты деградации всех случаев одним массивом;
-    // сервис без случаев тоже попадает в ответ — с пустым массивом
-    $cells = query($pdo, "
-        SELECT c.id AS category_id, c.name AS category,
-               o.id AS operation_id, o.num AS operation_num, o.name AS operation,
-               s.id AS service_id, s.name AS service,
-               m.id AS metric_id,
-               COALESCE(json_agg(d.pct ORDER BY d.pct) FILTER (WHERE d.pct IS NOT NULL), '[]') AS pcts
-        FROM service s
-                 JOIN operation o ON o.id = s.operation_id
-                 JOIN category c  ON c.id = o.category_id
-                 CROSS JOIN metric m
-                 LEFT JOIN degradation_case d ON d.service_id = s.id AND d.metric_id = m.id
-        GROUP BY c.id, o.id, s.id, m.id
-        ORDER BY c.id, o.num, s.id, m.id");
+    // 1. Справочники: метрики, диапазоны и категории — просто списки из таблиц
+    $metrics = query($pdo, 'SELECT id, name FROM metric ORDER BY id');
+    $buckets = query($pdo, 'SELECT id, label, pct_from, pct_to FROM bucket ORDER BY id');
+    $categories = query($pdo, 'SELECT id, name FROM category ORDER BY id');
 
+    // 2. Сервисы вместе с названиями их операции и категории — по одной строке на сервис
+    $services = query($pdo, "
+        SELECT category.id    AS category_id,
+               category.name  AS category,
+               operation.id   AS operation_id,
+               operation.num  AS operation_num,
+               operation.name AS operation,
+               service.id     AS service_id,
+               service.name   AS service
+        FROM service
+        JOIN operation ON operation.id = service.operation_id   -- к сервису — его операция
+        JOIN category  ON category.id = operation.category_id   -- к операции — её категория
+        ORDER BY category.id, operation.num, service.id");
+
+    // 3. Все случаи деградации — по возрастанию процента
+    $cases = query($pdo, 'SELECT service_id, metric_id, pct FROM degradation_case ORDER BY pct');
+
+    // 4. Заводим запись на каждый сервис; для каждой метрики — пока пустой список процентов
     $rows = [];
-    foreach ($cells as $cell) {
-        $id = $cell['service_id'];
-        $rows[$id] ??= [
-            'category_id' => $cell['category_id'],
-            'category' => $cell['category'],
-            'operation_id' => $cell['operation_id'],
-            'operation_num' => $cell['operation_num'],
-            'operation' => $cell['operation'],
-            'service_id' => $id,
-            'service' => $cell['service'],
-            'pcts' => [],
-        ];
-        $rows[$id]['pcts'][$cell['metric_id']] = json_decode($cell['pcts']);
+    foreach ($services as $service) {
+        $id = $service['service_id'];
+        $rows[$id] = $service;
+        $rows[$id]['pcts'] = [];
+        foreach ($metrics as $metric) {
+            $rows[$id]['pcts'][$metric['id']] = [];
+        }
+    }
+
+    // 5. Раскладываем каждый случай в список своего сервиса и своей метрики
+    foreach ($cases as $case) {
+        $serviceId = $case['service_id'];
+        $metricId = $case['metric_id'];
+        $rows[$serviceId]['pcts'][$metricId][] = $case['pct'];   // [] = «добавить в конец списка»
     }
 
     return [
-        'metrics' => query($pdo, 'SELECT id, name FROM metric ORDER BY id'),
-        'buckets' => query($pdo, 'SELECT id, label, pct_from, pct_to FROM bucket ORDER BY id'),
-        'categories' => query($pdo, 'SELECT id, name FROM category ORDER BY id'),
+        'metrics' => $metrics,
+        'buckets' => $buckets,
+        'categories' => $categories,
+        // array_values убирает ключи-id: [4 => …, 7 => …] → […, …], чтобы в JSON вышел список, а не объект
         'rows' => array_values($rows),
     ];
 }
 
-$route = trim(preg_replace('#^/api#', '', parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH)), '/');
+// Из адреса запроса достаём имя метода API: "/api/data?x=1" -> "data"
+$uri = $_SERVER['REQUEST_URI'];                      // адрес целиком:              "/api/data?x=1"
+//$_SERVER — встроенный массив PHP со сведениями о текущем запросе. Его заполняет сам PHP на основе того, что передал nginx.
+$path = parse_url($uri, PHP_URL_PATH);               // без параметров после «?»:   "/api/data"
+$withoutPrefix = preg_replace('#^/api#', '', $path); // без «/api» в начале:        "/data"
+$route = trim($withoutPrefix, '/');                  // без слэшей по краям:        "data"
 
 try {
-    match ($route) {
-        'data' => respond(200, data(db())),
-        default => respond(404, ['error' => 'Неизвестный метод API']),
-    };
+    if ($route === 'data') {
+        // Сначала db() открывает соединение с базой.
+        // Его передаём в data(), которая выполняет запросы
+        // и собирает данные в массив. Этот массив respond()
+        // отправляет браузеру в формате JSON с кодом 200.
+        $pdo = db();                // подключаемся к базе
+        $body = data($pdo);         // достаём из базы все данные для дашборда
+        respond(200, $body);        // 200 — всё хорошо, отдаём данные
+    } else {
+        // запросили метод, которого нет
+        respond(404, ['error' => 'Неизвестный метод API']);
+    }
 } catch (PDOException $e) {
+    // сломалась база (не подключились или ошибка в запросе):
+    // подробности — в лог сервера, пользователю — короткое сообщение без внутренностей
     error_log((string) $e);
     respond(500, ['error' => 'Ошибка базы данных']);
 }
