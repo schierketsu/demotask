@@ -10,7 +10,7 @@
 //
 // Сторонних библиотек нет — всё рисуется обычными HTML- и SVG-элементами.
 // Тексты из данных вставляются только через textContent: так они не могут превратиться в HTML-код.
-// Отсюда app.js берёт: el, sum, inkFor, renderDonut, renderServiceBars, renderTable, equalizeColumns.
+// Отсюда другие модули берут: el, byId, sum, inkFor, renderDonut, renderServiceBars, renderTable, equalizeColumns.
 
 
 // ============================================================================
@@ -69,6 +69,11 @@ export function el(tag, attrs = {}, parent = null, text = null) {
         parent.append(element);
     }
     return element;
+}
+
+/** Найти элемент страницы по его id */
+export function byId(id) {
+    return document.getElementById(id);
 }
 
 /** То же, что el, но для SVG-фигур (круг, контур, текст внутри <svg>) */
