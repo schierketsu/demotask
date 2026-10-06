@@ -5,7 +5,7 @@ declare(strict_types=1);
 /*
  * JSON API дашборда. nginx направляет сюда все запросы /api/*.
  *
- *   GET /api/data  метрики, диапазоны, категории операций и значения по сервисам
+ *   GET /api/data  метрики, диапазоны, группы операций и проценты деградации случаев по сервисам
  */
 
 function db(): PDO
@@ -34,18 +34,21 @@ function respond(int $status, array $body): never
 
 function data(PDO $pdo): array
 {
-    // по строке на сервис и метрику: значения по диапазонам одним массивом, как строка в Excel
-    $cells = query($pdo, '
+    // по строке на сервис и метрику: проценты деградации всех случаев одним массивом;
+    // сервис без случаев тоже попадает в ответ — с пустым массивом
+    $cells = query($pdo, "
         SELECT c.id AS category_id, c.name AS category,
                o.id AS operation_id, o.num AS operation_num, o.name AS operation,
                s.id AS service_id, s.name AS service,
-               d.metric_id, json_agg(d.cnt ORDER BY d.bucket_id) AS counts
-        FROM degradation d
-                 JOIN service s   ON s.id = d.service_id
+               m.id AS metric_id,
+               COALESCE(json_agg(d.pct ORDER BY d.pct) FILTER (WHERE d.pct IS NOT NULL), '[]') AS pcts
+        FROM service s
                  JOIN operation o ON o.id = s.operation_id
                  JOIN category c  ON c.id = o.category_id
-        GROUP BY c.id, o.id, s.id, d.metric_id
-        ORDER BY c.id, o.num, s.id, d.metric_id');
+                 CROSS JOIN metric m
+                 LEFT JOIN degradation_case d ON d.service_id = s.id AND d.metric_id = m.id
+        GROUP BY c.id, o.id, s.id, m.id
+        ORDER BY c.id, o.num, s.id, m.id");
 
     $rows = [];
     foreach ($cells as $cell) {
@@ -58,9 +61,9 @@ function data(PDO $pdo): array
             'operation' => $cell['operation'],
             'service_id' => $id,
             'service' => $cell['service'],
-            'counts' => [],
+            'pcts' => [],
         ];
-        $rows[$id]['counts'][$cell['metric_id']] = json_decode($cell['counts']);
+        $rows[$id]['pcts'][$cell['metric_id']] = json_decode($cell['pcts']);
     }
 
     return [

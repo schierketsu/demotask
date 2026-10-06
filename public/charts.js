@@ -82,7 +82,7 @@ function arc(c, R, r, a0, a1) {
 }
 
 /**
- * parts: [{ label, sub, value, color }]; selected — индекс выбранной части или null;
+ * parts: [{ label, short, sub, value, color }]; short — подпись на секторе; selected — индекс выбранной части или null;
  * onSelect(i) вызывается по клику на сектор или строку легенды.
  */
 export function renderDonut(host, { parts, selected, onSelect }) {
@@ -93,7 +93,7 @@ export function renderDonut(host, { parts, selected, onSelect }) {
     const r = 56;
 
     const wrap = el('div', { class: 'donut' });
-    const svg = svgEl('svg', { viewBox: `0 0 ${S} ${S}`, width: S, height: S, role: 'img', 'aria-label': 'Доли аварий по категориям' }, wrap);
+    const svg = svgEl('svg', { viewBox: `0 0 ${S} ${S}`, width: S, height: S, role: 'img', 'aria-label': 'Доли аварий по степеням деградации' }, wrap);
 
     if (total === 0) {
         svgEl('circle', { cx: c, cy: c, r: (R + r) / 2, fill: 'none', stroke: 'var(--grid)', 'stroke-width': R - r }, svg);
@@ -106,13 +106,13 @@ export function renderDonut(host, { parts, selected, onSelect }) {
         const d = p.value === total ? arc(c, R, r, 0, Math.PI) + arc(c, R, r, Math.PI, 2 * Math.PI) : arc(c, R, r, a, a1);
         const slice = svgEl('path', { d, fill: p.color, class: p.value === total ? 'slice full' : 'slice' }, svg);
         if (selected !== null && selected !== i) slice.classList.add('dim');
-        // номер категории на секторе — чтобы категории различались не только цветом
+        // буква степени на секторе — чтобы степени различались не только цветом
         if (a1 - a >= 0.35) {
             const mid = (a + a1) / 2;
             const num = svgEl('text', {
                 class: 'slice-num', x: c + ((R + r) / 2) * Math.sin(mid), y: c - ((R + r) / 2) * Math.cos(mid) + 4, fill: inkFor(p.color),
             }, svg);
-            num.textContent = String(i + 1);
+            num.textContent = p.short;
             if (selected !== null && selected !== i) num.classList.add('dim');
         }
         slice.addEventListener('click', () => onSelect(i));
@@ -123,12 +123,12 @@ export function renderDonut(host, { parts, selected, onSelect }) {
         a = a1;
     });
 
-    // в центре — всего аварий или число в выбранной категории
+    // в центре — всего аварий или число в выбранной степени и её доля
     const shown = selected === null ? total : parts[selected].value;
     svgEl('text', { x: c, y: c + 4, class: 'donut-value' }, svg).textContent = fmt.format(shown);
     svgEl('text', { x: c, y: c + 24, class: 'donut-label' }, svg).textContent = selected === null
         ? plural(total, ['авария', 'аварии', 'аварий'])
-        : `категория ${selected + 1}${total ? ' · ' + pct.format(shown / total) : ''}`;
+        : (total ? pct.format(shown / total) : '');
 
     const legend = el('div', { class: 'donut-legend' }, wrap);
     parts.forEach((p, i) => {
@@ -148,10 +148,11 @@ export function renderDonut(host, { parts, selected, onSelect }) {
 // ---------- полосы по сервисам ----------
 
 /**
- * items: [{ name, parts: [кол-во в категории 1..4] }]. Полоса сервиса разбита на цвета категорий;
- * если категория выбрана — показывается только она. max — общий масштаб для сравнения карточек.
+ * items: [{ name, parts: [кол-во по степеням деградации] }]; names — названия степеней.
+ * Полоса сервиса разбита на цвета степеней; если степень выбрана — показывается только она.
+ * max — общий масштаб для сравнения карточек.
  */
-export function renderServiceBars(host, { items, colors, selected, max }) {
+export function renderServiceBars(host, { items, colors, names, selected, max }) {
     const shown = items
         .map((it) => ({ ...it, value: selected === null ? sum(it.parts) : it.parts[selected] }))
         .filter((it) => it.value > 0)
@@ -170,7 +171,7 @@ export function renderServiceBars(host, { items, colors, selected, max }) {
         it.parts.forEach((v, i) => {
             if (!v || (selected !== null && selected !== i)) return;
             const seg = el('span', { style: `flex-grow: ${v}; background: ${colors[i]}` }, bar);
-            bindTip(seg, () => ({ title: it.name, rows: [{ value: v, label: `категория ${i + 1}`, color: colors[i] }] }));
+            bindTip(seg, () => ({ title: it.name, rows: [{ value: v, label: names[i].toLowerCase(), color: colors[i] }] }));
         });
         el('span', { class: 'bar-value' }, line, fmt.format(it.value));
     }
@@ -178,16 +179,6 @@ export function renderServiceBars(host, { items, colors, selected, max }) {
 }
 
 // ---------- таблица как в Excel ----------
-
-/** Поэлементная сумма значений по метрикам: { metricId: [по диапазонам] } */
-function sumCounts(rows, metrics, size) {
-    const out = {};
-    for (const m of metrics) {
-        out[m.id] = Array(size).fill(0);
-        for (const r of rows) r.counts[m.id].forEach((v, i) => { out[m.id][i] += v; });
-    }
-    return out;
-}
 
 function groupBy(rows, key) {
     const map = new Map();
@@ -199,42 +190,57 @@ function groupBy(rows, key) {
 }
 
 /**
- * Строки сервисов с подытогами по категориям операций. Ячейка окрашена цветом категории аварии
- * своего диапазона: ненулевые — полным цветом, нулевые — бледным оттенком.
+ * Таблица как в Excel: по блоку на каждую метрику, один под другим. Блоки — части одной таблицы,
+ * поэтому столбцы у них одинаковой ширины. columns: [{ from, to, sev }] — общие для всех метрик,
+ * rows[].counts[metricId] — количество случаев по колонкам.
  */
-export function renderTable(host, { metrics, buckets, rows, bucketSev, colors, selected }) {
-    const paint = (cell, v, bi) => {
-        const color = colors[bucketSev[bi]];
+export function renderTable(host, { metrics, columns, rows, colors, selected }) {
+    const table = el('table', { class: 'grid' });
+    // колонки диапазонов — одинаковой ширины (см. .grid col.value), колонки №, операции и сервиса — по содержимому
+    const colgroup = el('colgroup', {}, table);
+    el('col', { span: 3 }, colgroup);
+    el('col', { span: columns.length, class: 'value' }, colgroup);
+
+    metrics.forEach((m, mi) => {
+        if (mi > 0) el('td', { colspan: columns.length + 3 }, el('tr', { class: 'spacer' }, el('tbody', {}, table)));
+        appendSection(table, m, mi === 0 ? 'thead' : 'tbody', columns, rows, colors, selected);
+    });
+    host.replaceChildren(table);
+}
+
+/** Блок одной метрики. Ячейка окрашена цветом степени своей колонки: ненулевые — полным цветом, нулевые — бледным оттенком */
+function appendSection(table, metric, headTag, columns, rows, colors, selected) {
+    const paint = (cell, v, c) => {
+        const color = colors[c.sev];
         cell.style.backgroundColor = v ? color : tint(color, 0.16);
         cell.style.color = v ? inkFor(color) : 'var(--muted)';
-        if (selected !== null && bucketSev[bi] !== selected) cell.classList.add('dim');
+        if (selected !== null && c.sev !== selected) cell.classList.add('dim');
     };
-    const valueCells = (tr, counts) => metrics.forEach((m, mi) => counts[m.id].forEach((v, bi) => {
-        paint(el('td', { class: bi === 0 && mi > 0 ? 'gap' : '' }, tr, fmt.format(v)), v, bi);
-    }));
+    const valueCells = (tr, counts) => counts.forEach((v, bi) => paint(el('td', {}, tr, fmt.format(v)), v, columns[bi]));
+    const sumCounts = (list) => columns.map((_, bi) => sum(list.map((r) => r.counts[metric.id][bi])));
 
-    const table = el('table', { class: 'grid' });
-    const head1 = el('tr', {}, el('thead', {}, table));
+    const head = el(headTag, {}, table);
+    const head1 = el('tr', {}, head);
     for (const title of ['№', 'Операция', 'Сервис']) el('th', { rowspan: 2, class: 'name' }, head1, title);
-    metrics.forEach((m, mi) => el('th', { colspan: buckets.length, class: mi > 0 ? 'metric gap' : 'metric' }, head1, `${m.label} · деградация, %`));
-    const head2 = el('tr', {}, table.tHead);
-    metrics.forEach((m, mi) => buckets.forEach((b, bi) => {
-        const th = el('th', { class: bi === 0 && mi > 0 ? 'bucket gap' : 'bucket' }, head2, `${b.pct_from}–${b.pct_to}`);
-        const color = colors[bucketSev[bi]];
+    el('th', { colspan: columns.length, class: 'metric' }, head1, `${metric.label} · деградация, %`);
+    const head2 = el('tr', {}, head);
+    for (const c of columns) {
+        const th = el('th', { class: 'bucket' }, head2, c.from === c.to ? String(c.from) : `${c.from}–${c.to}`);
+        const color = colors[c.sev];
         th.style.backgroundColor = color;
         th.style.color = inkFor(color);
-        if (selected !== null && bucketSev[bi] !== selected) th.classList.add('dim');
-    }));
+        if (selected !== null && c.sev !== selected) th.classList.add('dim');
+    }
 
     const body = el('tbody', {}, table);
     const total = el('tr', { class: 'sum' }, body);
     el('td', { colspan: 3, class: 'name' }, total, 'Всего');
-    valueCells(total, sumCounts(rows, metrics, buckets.length));
+    valueCells(total, sumCounts(rows));
 
     for (const catRows of groupBy(rows, (r) => r.category_id)) {
         const cat = el('tr', { class: 'sum' }, body);
         el('td', { colspan: 3, class: 'name' }, cat, catRows[0].category);
-        valueCells(cat, sumCounts(catRows, metrics, buckets.length));
+        valueCells(cat, sumCounts(catRows));
 
         for (const opRows of groupBy(catRows, (r) => r.operation_id)) {
             opRows.forEach((r, i) => {
@@ -244,9 +250,8 @@ export function renderTable(host, { metrics, buckets, rows, bucketSev, colors, s
                     el('td', { rowspan: opRows.length, class: 'name' }, tr, r.operation);
                 }
                 el('td', { class: 'name' }, tr, r.service);
-                valueCells(tr, r.counts);
+                valueCells(tr, r.counts[metric.id]);
             });
         }
     }
-    host.replaceChildren(table);
 }

@@ -9,17 +9,13 @@
     <script type="module" src="app.js"></script>
 </head>
 <body>
-<header>
-    <h1>Аварии ИС и степень деградации</h1>
-</header>
-
 <div class="filters">
-    <label>Категория операций
+    <label>Группа операций
         <select id="opcat">
             <option value="">Все</option>
         </select>
     </label>
-    <div class="chips" id="chips" role="radiogroup" aria-label="Категория аварии"></div>
+    <div class="chips" id="chips" role="radiogroup" aria-label="Степень деградации"></div>
 </div>
 
 <p class="error" id="error" role="alert" hidden></p>
@@ -27,10 +23,9 @@
 <main>
     <section class="card">
         <div class="card-head">
-            <h2>Категории аварий</h2>
+            <h2>Степени деградации</h2>
             <button type="button" id="reset">Сбросить</button>
         </div>
-        <p class="muted">Двигайте границы или вводите числа, нажмите на цвет, чтобы его сменить — диаграммы и таблица перекрасятся сразу</p>
         <div class="range" id="range">
             <div class="range-track" id="range-track"></div>
         </div>
@@ -42,7 +37,7 @@
 
     <section class="card">
         <h2>Таблица</h2>
-        <p class="muted">Количество аварий по сервисам и диапазонам деградации, цвет — категория аварии</p>
+        <p class="muted">Количество аварий по сервисам и диапазонам деградации, цвет — степень деградации</p>
         <div class="table-wrap" id="table"></div>
     </section>
 </main>

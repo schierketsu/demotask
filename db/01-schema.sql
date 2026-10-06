@@ -6,7 +6,7 @@ CREATE TABLE metric (
     name text NOT NULL
 );
 
--- Диапазон глубины деградации: «0-10%» … «91-100%»
+-- Диапазон глубины деградации: «0-10%» … «91-100%» — колонки таблицы «как в Excel»
 CREATE TABLE bucket (
     id       int PRIMARY KEY,
     label    text NOT NULL,
@@ -32,11 +32,10 @@ CREATE TABLE service (
     name         text NOT NULL
 );
 
--- Количество случаев деградации сервиса в диапазоне по метрике
-CREATE TABLE degradation (
+-- Случай деградации сервиса: процент деградации — готовый результат анализа, всегда целое число
+CREATE TABLE degradation_case (
+    id         int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     service_id int NOT NULL REFERENCES service (id),
     metric_id  int NOT NULL REFERENCES metric (id),
-    bucket_id  int NOT NULL REFERENCES bucket (id),
-    cnt        int NOT NULL CHECK (cnt >= 0),
-    PRIMARY KEY (service_id, metric_id, bucket_id)
+    pct        int NOT NULL CHECK (pct BETWEEN 0 AND 100)
 );
