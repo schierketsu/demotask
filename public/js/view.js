@@ -49,11 +49,7 @@ export function render() {
 
 /** Клик по сектору кольца или строке легенды: выбрать степень; повторный клик — снять выбор */
 function toggleSeverity(i) {
-    if (state.selected === i) {
-        state.selected = null;
-    } else {
-        state.selected = i;
-    }
+    state.selected = state.selected === i ? null : i;
     render();
 }
 
@@ -121,11 +117,8 @@ function buildMetricCard(metric, items, sevs, max, columns, tableRows) {
         onSelect: toggleSeverity,
     });
 
-    // заголовок над полосами
-    let title = 'Сервисы';
-    if (state.selected !== null) {
-        title = `Сервисы · ${sevs[state.selected].name.toLowerCase()} деградация`;
-    }
+    // заголовок над полосами: «Сервисы» или, если выбрана степень, «Сервисы · частичная деградация»
+    const title = state.selected === null ? 'Сервисы' : `Сервисы · ${sevs[state.selected].name.toLowerCase()} деградация`;
     el('h3', {}, summary, title);
 
     // полосы по сервисам

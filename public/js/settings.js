@@ -39,11 +39,7 @@ function isValidSettings(settings) {
         return false;
     }
     for (let i = 0; i < 3; i++) {
-        // для первой границы «предыдущая» — это 0
-        let previous = 0;
-        if (i > 0) {
-            previous = bounds[i - 1];
-        }
+        const previous = i > 0 ? bounds[i - 1] : 0;      // для первой границы «предыдущая» — это 0
         const fitsStep = bounds[i] % STEP === 0;          // кратна шагу
         const biggerThanPrevious = bounds[i] > previous;  // идёт по возрастанию
         const lessThan100 = bounds[i] < 100;

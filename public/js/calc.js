@@ -37,15 +37,9 @@ export function severities() {
 
     for (let i = 0; i < 4; i++) {
         // начало диапазона: у первой степени 0, у остальных — следующий процент после предыдущей границы
-        let from = 0;
-        if (i > 0) {
-            from = bounds[i - 1] + 1;
-        }
+        const from = i > 0 ? bounds[i - 1] + 1 : 0;
         // конец диапазона: у последней степени 100, у остальных — своя граница
-        let to = 100;
-        if (i < 3) {
-            to = bounds[i];
-        }
+        const to = i < 3 ? bounds[i] : 100;
         result.push({
             name: DEGREES[i],
             short: DEGREES[i].charAt(0),
@@ -104,10 +98,7 @@ export function serviceBars(rows, metric) {
 
 /** Сколько аварий показывать на полосе сервиса: все, или только выбранной степени */
 function shownValue(parts) {
-    if (state.selected === null) {
-        return sum(parts);
-    }
-    return parts[state.selected];
+    return state.selected === null ? sum(parts) : parts[state.selected];
 }
 
 /** Самое большое показываемое значение среди всех полос всех метрик (не меньше 1) */
@@ -185,10 +176,7 @@ export function mergeEmptyColumns(columns, pcts) {
         const empty = !hasPctInRange(pcts, column.from, column.to);
 
         // последняя уже добавленная колонка (или null, если ещё ничего не добавили)
-        let previous = null;
-        if (result.length > 0) {
-            previous = result[result.length - 1];
-        }
+        const previous = result.length > 0 ? result[result.length - 1] : null;
 
         const canMerge = empty && previous !== null && previous.empty && previous.sev === column.sev;
         if (canMerge) {

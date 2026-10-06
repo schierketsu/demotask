@@ -34,12 +34,10 @@ function apply() {
 
 /** «Деградация (без учета 5 минут)» → «Без учета 5 минут»: берём текст в скобках и делаем первую букву заглавной */
 function shortName(name) {
-    let inner = name;   // если скобок нет — берём название целиком
     const open = name.indexOf('(');
     const close = name.indexOf(')', open + 1);
-    if (open !== -1 && close > open + 1) {
-        inner = name.slice(open + 1, close);
-    }
+    const hasBrackets = open !== -1 && close > open + 1;
+    const inner = hasBrackets ? name.slice(open + 1, close) : name;   // если скобок нет — берём название целиком
     return inner.charAt(0).toUpperCase() + inner.slice(1);
 }
 
@@ -56,10 +54,8 @@ async function loadData() {
     }
 
     if (!response.ok) {
-        let message = body.error;                    // текст ошибки от нашего API…
-        if (!message) {
-            message = `HTTP ${response.status}`;    // …или хотя бы код ответа
-        }
+        // текст ошибки от нашего API… или хотя бы код ответа
+        const message = body.error ? body.error : `HTTP ${response.status}`;
         throw new Error(message);
     }
     return body;

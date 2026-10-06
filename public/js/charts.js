@@ -131,21 +131,14 @@ export function inkFor(hex) {
     const linear = [];
     for (const channel of hexToRgb(hex)) {
         const value = channel / 255;
-        if (value <= 0.03928) {
-            linear.push(value / 12.92);
-        } else {
-            linear.push(((value + 0.055) / 1.055) ** 2.4);
-        }
+        linear.push(value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
     }
     // зелёный глаз видит ярче всего, синий — слабее всего
     const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
 
     const contrastWithBlack = (luminance + 0.05) / 0.05;
     const contrastWithWhite = 1.05 / (luminance + 0.05);
-    if (contrastWithBlack > contrastWithWhite) {
-        return '#0b0b0b';
-    }
-    return '#ffffff';
+    return contrastWithBlack > contrastWithWhite ? '#0b0b0b' : '#ffffff';
 }
 
 
@@ -183,10 +176,9 @@ function showTooltip(title, rows, x, y) {
         left = 8;                        // упёрлись в левый край
     }
 
-    let top = y + 14;
-    if (top + height > innerHeight - 8) {
-        top = y - height - 10;           // снизу не помещается — показываем над курсором
-    }
+    // ниже курсора; если снизу не помещается — над курсором
+    const fitsBelow = y + 14 + height <= innerHeight - 8;
+    const top = fitsBelow ? y + 14 : y - height - 10;
 
     tooltip.style.left = `${left}px`;
     tooltip.style.top = `${top}px`;
@@ -232,10 +224,7 @@ function pointOnCircle(radius, angle) {
  */
 function sectorPath(startAngle, endAngle) {
     // дугу больше половины круга SVG нужно явно пометить как «большую», иначе он нарисует короткую
-    let largeArc = 0;
-    if (endAngle - startAngle > Math.PI) {
-        largeArc = 1;
-    }
+    const largeArc = endAngle - startAngle > Math.PI ? 1 : 0;
     return `M${pointOnCircle(OUTER_RADIUS, startAngle)}`
         + `A${OUTER_RADIUS},${OUTER_RADIUS} 0 ${largeArc} 1 ${pointOnCircle(OUTER_RADIUS, endAngle)}`
         + `L${pointOnCircle(INNER_RADIUS, endAngle)}`
@@ -306,12 +295,10 @@ function drawSectors(svg, parts, total, selected, onSelect) {
 
         // если все аварии одной степени — сектор на весь круг. Дугу ровно в 360° SVG не рисует
         // (начало совпадает с концом), поэтому рисуем две половины
-        let path = sectorPath(startAngle, endAngle);
-        let className = 'slice';
-        if (isWholeRing) {
-            path = sectorPath(0, Math.PI) + sectorPath(Math.PI, 2 * Math.PI);
-            className = 'slice full';
-        }
+        const path = isWholeRing
+            ? sectorPath(0, Math.PI) + sectorPath(Math.PI, 2 * Math.PI)
+            : sectorPath(startAngle, endAngle);
+        const className = isWholeRing ? 'slice full' : 'slice';
         const slice = svgEl('path', { d: path, fill: part.color, class: className }, svg);
         if (isDimmed(i, selected)) {
             slice.classList.add('dim');
@@ -354,15 +341,9 @@ function drawSectors(svg, parts, total, selected, onSelect) {
  * Выбрана степень — сколько аварий этой степени и какая это доля: «10» и «34 %».
  */
 function drawCenter(svg, parts, total, selected) {
-    let value = total;
-    let caption = accidentsWord(total);
-    if (selected !== null) {
-        value = parts[selected].value;
-        caption = '';   // аварий нет вообще — долю не посчитать, подпись пустая
-        if (total > 0) {
-            caption = percentFormat.format(value / total);
-        }
-    }
+    const value = selected === null ? total : parts[selected].value;
+    const share = total > 0 ? percentFormat.format(value / total) : '';   // аварий нет вообще — долю не посчитать
+    const caption = selected === null ? accidentsWord(total) : share;
 
     const valueText = svgEl('text', { x: DONUT_CENTER, y: DONUT_CENTER + 4, class: 'donut-value' }, svg);
     valueText.textContent = numberFormat.format(value);
@@ -376,10 +357,7 @@ function drawLegend(wrapper, parts, total, selected, onSelect) {
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        let share = '—';   // аварий нет вообще — долю не посчитать
-        if (total > 0) {
-            share = percentFormat.format(part.value / total);
-        }
+        const share = total > 0 ? percentFormat.format(part.value / total) : '—';   // аварий нет вообще — долю не посчитать
 
         // название степени в строке не пишем — оно во всплывающей подсказке и для экранного диктора
         const row = el('button', {
@@ -427,10 +405,7 @@ export function renderServiceBars(host, options) {
     // сколько аварий показываем у каждого сервиса: все, или только выбранной степени
     const shown = [];
     for (const item of items) {
-        let value = sum(item.parts);
-        if (selected !== null) {
-            value = item.parts[selected];
-        }
+        const value = selected === null ? sum(item.parts) : item.parts[selected];
         if (value > 0) {
             shown.push({ name: item.name, parts: item.parts, value: value });
         }
@@ -585,10 +560,7 @@ function addHeader(table, columns, colors, selected) {
 
 /** Подпись колонки: «21–30», а если колонка шириной в один процент — просто «31» */
 function columnTitle(column) {
-    if (column.from === column.to) {
-        return String(column.from);
-    }
-    return `${column.from}–${column.to}`;
+    return column.from === column.to ? String(column.from) : `${column.from}–${column.to}`;
 }
 
 /** Сумма по колонкам для нескольких сервисов: сколько аварий у них всех вместе в каждой колонке */
@@ -646,10 +618,8 @@ export function equalizeColumns(table) {
     // таблица не уже, чем названия + колонки диапазонов по VALUE_COL_MIN + промежутки между ячейками
     // (промежутков на один больше, чем колонок: колонок диапазонов valueCount и ещё 3 колонки названий)
     const valueCount = table.querySelectorAll('thead th.bucket').length;
-    let spacing = parseFloat(getComputedStyle(table).borderSpacing);   // промежуток между ячейками из CSS
-    if (Number.isNaN(spacing)) {
-        spacing = 0;
-    }
+    const cssSpacing = parseFloat(getComputedStyle(table).borderSpacing);   // промежуток между ячейками из CSS
+    const spacing = Number.isNaN(cssSpacing) ? 0 : cssSpacing;
     table.style.minWidth = `${sum(nameWidths) + valueCount * VALUE_COL_MIN + (valueCount + 4) * spacing}px`;
 
     // 3. фиксированная раскладка
