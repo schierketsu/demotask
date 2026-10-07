@@ -8,13 +8,13 @@ declare(strict_types=1); //строгий режим (без приведени�
  *   GET /api/data  метрики, диапазоны, группы операций и проценты деградации случаев по сервисам
  */
 
-function db(): PDO
+function db(): PDO //на вовзрате ожидается обьект PDO
 {
     $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s', getenv('DB_HOST'), getenv('DB_PORT'), getenv('DB_NAME'));
 
     return new PDO($dsn, getenv('DB_USER'), getenv('DB_PASSWORD'), [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, //что делать при ошибке базы: бросать исключение
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC, //в каком ввиде отдавать строки: в формате ассоциативных массивов (ключ -имя колонки)
     ]);
 }
 
@@ -22,6 +22,7 @@ function query(PDO $pdo, string $sql): array
 {
     return $pdo->query($sql)->fetchAll();
 }
+
 
 // never — функция не возвращается туда, откуда её вызвали: в конце exit завершает скрипт
 function respond(int $status, array $body): never
@@ -31,6 +32,11 @@ function respond(int $status, array $body): never
     header('Cache-Control: no-store');
     echo json_encode($body, JSON_UNESCAPED_UNICODE);
     exit;
+    //по умолчанию у пыхи такая заготовка
+    //HTTP/1.1 200 OK
+    //Content-Type: text/html
+    //поэтому если сперва запулить бади, то улетят и шаблонные
+    //заголовки кода и хедера
 }
 
 function data(PDO $pdo): array
@@ -40,7 +46,7 @@ function data(PDO $pdo): array
     $buckets = query($pdo, 'SELECT id, label, pct_from, pct_to FROM bucket ORDER BY id');
     $categories = query($pdo, 'SELECT id, name FROM category ORDER BY id');
 
-    // 2. Сервисы вместе с названиями их операции и категории — по одной строке на сервис
+    //таблица категория-операция-сервис
     $services = query($pdo, "
         SELECT category.id    AS category_id,
                category.name  AS category,
@@ -54,10 +60,13 @@ function data(PDO $pdo): array
         JOIN category  ON category.id = operation.category_id   -- к операции — её категория
         ORDER BY category.id, operation.num, service.id");
 
-    // 3. Все случаи деградации — по возрастанию процента
+    // все случаи деградации 
     $cases = query($pdo, 'SELECT service_id, metric_id, pct FROM degradation_case ORDER BY pct');
 
-    // 4. Заводим запись на каждый сервис; для каждой метрики — пока пустой список процентов
+    // прогоняю все сервисы (8) в ассоциативный массивы приписывая доп.поле pcts в котором два слота пустых metric
+    //Сервис 1
+    //├── метрика 1 → []
+    //└── метрика 2 → []
     $rows = [];
     foreach ($services as $service) {
         $id = $service['service_id'];
@@ -68,10 +77,11 @@ function data(PDO $pdo): array
         }
     }
 
-    // 5. Раскладываем каждый случай в список своего сервиса и своей метрики
+    // раскладываем каждый случай деградации в список своего сервиса и своей метрики
     foreach ($cases as $case) {
         $serviceId = $case['service_id'];
         $metricId = $case['metric_id'];
+        //пустое [] = «добавить в конец списка» — чтобы не перезаписывать предыдущие проценты
         $rows[$serviceId]['pcts'][$metricId][] = $case['pct'];   // [] = «добавить в конец списка»
     }
 

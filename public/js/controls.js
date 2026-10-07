@@ -144,8 +144,14 @@ export function updateControls() {
     // отрезки шкалы: ширина — по размеру диапазона степени, фон — её цвет
     for (let i = 0; i < 4; i++) {
         const segment = controls.segments[i];
-        const start = i > 0 ? bounds[i - 1] : 0;     // у первой степени — от 0
-        const end = i < 3 ? bounds[i] : 100;         // у последней — до 100
+        let start = 0;
+        if (i > 0) {
+            start = bounds[i - 1];
+        }
+        let end = 100;
+        if (i < 3) {
+            end = bounds[i];
+        }
         segment.style.flexGrow = end - start;
         // лёгкий градиент: слева цвет чуть светлее
         segment.style.background = `linear-gradient(90deg, color-mix(in srgb, ${colors[i]} 86%, #fff), ${colors[i]})`;

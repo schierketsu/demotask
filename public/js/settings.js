@@ -7,14 +7,14 @@ import { STEP, STORAGE_KEY, defaultSettings } from './config.js';
 /** Прочитать настройки, сохранённые в браузере. Если их нет или они испорчены — вернуть настройки по умолчанию */
 export function loadSettings() {
     try {
-        const text = localStorage.getItem(STORAGE_KEY);   // сохранённый текст или null, если ничего нет
-        const saved = JSON.parse(text);                    // текст → объект
-        if (isValidSettings(saved)) {
-            return saved;
+        const text = localStorage.getItem(STORAGE_KEY);
+
+        if (text !== null) {
+            return JSON.parse(text);
         }
     } catch (error) {
-        // нет доступа к хранилищу или в нём битые данные — возьмём настройки по умолчанию
     }
+
     return defaultSettings();
 }
 
@@ -25,56 +25,6 @@ export function saveSettings(settings) {
     } catch (error) {
         // не получилось сохранить — не страшно, страница всё равно работает
     }
-}
-
-/** Проверить настройки: 3 границы по возрастанию (каждая меньше 100) и 4 цвета вида #RRGGBB */
-function isValidSettings(settings) {
-    if (settings === null || typeof settings !== 'object') {
-        return false;
-    }
-
-    // --- границы ---
-    const bounds = settings.bounds;
-    if (!Array.isArray(bounds) || bounds.length !== 3) {
-        return false;
-    }
-    for (let i = 0; i < 3; i++) {
-        const previous = i > 0 ? bounds[i - 1] : 0;      // для первой границы «предыдущая» — это 0
-        const fitsStep = bounds[i] % STEP === 0;          // кратна шагу
-        const biggerThanPrevious = bounds[i] > previous;  // идёт по возрастанию
-        const lessThan100 = bounds[i] < 100;
-        if (!fitsStep || !biggerThanPrevious || !lessThan100) {
-            return false;
-        }
-    }
-
-    // --- цвета ---
-    const colors = settings.colors;
-    if (!Array.isArray(colors) || colors.length !== 4) {
-        return false;
-    }
-    for (const color of colors) {
-        if (!isHexColor(color)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-/** Цвет вида #RRGGBB: решётка и ровно 6 шестнадцатеричных цифр (0–9, a–f, большими или маленькими буквами) */
-function isHexColor(text) {
-    if (typeof text !== 'string' || text.length !== 7 || text[0] !== '#') {
-        return false;
-    }
-    const allowed = '0123456789abcdef';
-    for (let i = 1; i < 7; i++) {
-        const char = text[i].toLowerCase();
-        if (!allowed.includes(char)) {
-            return false;
-        }
-    }
-    return true;
 }
 
 /**
