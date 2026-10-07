@@ -27,7 +27,6 @@ import { byId, el } from './charts.js';
 
 /** Настройки изменились: сохранить их, обновить панель и перерисовать страницу */
 function apply() {
-    saveSettings(state.settings);
     updateControls();
     render();
 }

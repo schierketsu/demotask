@@ -3,30 +3,6 @@
 
 import { STEP, STORAGE_KEY, defaultSettings } from './config.js';
 
-
-/** Прочитать настройки, сохранённые в браузере. Если их нет или они испорчены — вернуть настройки по умолчанию */
-export function loadSettings() {
-    try {
-        const text = localStorage.getItem(STORAGE_KEY);
-
-        if (text !== null) {
-            return JSON.parse(text);
-        }
-    } catch (error) {
-    }
-
-    return defaultSettings();
-}
-
-/** Сохранить настройки в браузере */
-export function saveSettings(settings) {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    } catch (error) {
-        // не получилось сохранить — не страшно, страница всё равно работает
-    }
-}
-
 /**
  * Поставить границу номер i (0, 1 или 2) из списка bounds в значение value.
  * Соседние границы при необходимости сдвигаются, чтобы у каждой степени остался хотя бы один процент.

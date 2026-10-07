@@ -2,7 +2,6 @@
 // Это один общий объект на все модули: модуль выполняется браузером один раз, поэтому каждый,
 // кто пишет import { state } from './state.js', получает этот же самый объект и видит его изменения.
 
-import { loadSettings } from './settings.js';
 
 
 export const state = {
@@ -10,6 +9,6 @@ export const state = {
     metrics: [],                // метрики с короткими названиями: [{ id, label }]
     opcat: '',                  // выбранная группа операций; '' — все группы
     selected: null,             // выбранная степень: 0..3, или null — «все»
-    settings: loadSettings(),   // границы и цвета степеней
+    settings: defaultSettings(),   // границы и цвета степеней
     controls: null,             // элементы панели настройки — чтобы потом их обновлять
 };
