@@ -6,7 +6,7 @@
 //   2. Сервисы: фильтр по группе операций, полосы по сервисам и их общий масштаб.
 //   3. Таблица: колонки (диапазоны, разрезанные границами степеней), склейка пустых колонок, подсчёт по колонкам.
 
-import { DEGREES } from './config.js';
+import { DEGREES, PALETTE } from './config.js';
 import { state } from './state.js';
 import { sum } from './charts.js';
 
@@ -27,12 +27,11 @@ export function severityOf(pct) {
 }
 
 /**
- * Описание четырёх степеней для подписей: название, первая буква, диапазон процентов и цвет.
- * Например: { name: 'Частичная', short: 'Ч', from: 21, to: 50, color: '#fbc22c' }
+ * Описание четырёх степеней для подписей: название, первая буква, диапазон процентов, цвет и цвет текста на нём.
+ * Например: { name: 'Частичная', short: 'Ч', from: 21, to: 50, color: '#fbc22c', text: '#0b0b0b' }
  */
 export function severities() {
     const bounds = state.settings.bounds;
-    const colors = state.settings.colors;
     const result = [];
 
     for (let i = 0; i < 4; i++) {
@@ -45,7 +44,8 @@ export function severities() {
             short: DEGREES[i].charAt(0),
             from: from,
             to: to,
-            color: colors[i],
+            color: PALETTE[i].color,
+            text: PALETTE[i].text,
         });
     }
     return result;

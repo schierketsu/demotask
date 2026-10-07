@@ -1,19 +1,19 @@
 // controls.js — панель настройки степеней: ползунки, цветная шкала с подписями, облачка со значениями,
-// деления под шкалой и плашки с выбором цвета и полем границы.
+// деления под шкалой и плашки с цветом степени и полем границы.
 //
 // Элементы создаются один раз (buildControls), а потом только обновляются (updateControls).
 // Что делать после того, как пользователь что-то поменял, решает app.js — он передаёт функцию onChange.
 
-import { DEGREES, LABEL_GAP, STEP, defaultSettings } from './config.js';
+import { DEGREES, LABEL_GAP, PALETTE, STEP, defaultSettings } from './config.js';
 import { state } from './state.js';
 import { setBound } from './settings.js';
 import { rangeText, severities } from './calc.js';
-import { byId, el, inkFor } from './charts.js';
+import { byId, el } from './charts.js';
 
 
 /**
  * Один раз создать все элементы панели настройки и подключить к ним обработчики.
- * onChange() вызывается после каждого изменения границ или цветов.
+ * onChange() вызывается после каждого изменения границ.
  */
 export function buildControls(onChange) {
     const sliders = [];
@@ -88,18 +88,14 @@ function createScale() {
 }
 
 /**
- * Плашка степени i: слева выбор цвета, справа диапазон и поле «до … %».
- * Возвращает { color, range, num } — элементы, которые потом обновляет updateControls().
+ * Плашка степени i: слева квадратик цвета степени, справа диапазон и поле «до … %».
+ * Возвращает { range, num } — элементы, которые потом обновляет updateControls().
  */
 function createTile(i, onChange) {
     const tile = el('div', { class: 'sev-tile' }, byId('sev-tiles'));
 
-    // выбор цвета: поменяли цвет — запоминаем и перерисовываем
-    const color = el('input', { type: 'color', 'aria-label': `Цвет степени «${DEGREES[i]}»` }, tile);
-    color.addEventListener('input', function () {
-        state.settings.colors[i] = color.value;
-        onChange();
-    });
+    // квадратик цвета — только для наглядности: цвета степеней постоянные (PALETTE в config.js)
+    el('span', { class: 'sev-swatch', style: `background: ${PALETTE[i].color}`, title: DEGREES[i] }, tile);
 
     // справа от цвета — диапазон текстом и поле границы
     const info = el('div', {}, tile);
@@ -126,13 +122,12 @@ function createTile(i, onChange) {
     }
     edit.append(' %');
 
-    return { color: color, range: range, num: num };
+    return { range: range, num: num };
 }
 
-/** Привести панель настройки в соответствие с текущими границами и цветами */
+/** Привести панель настройки в соответствие с текущими границами */
 export function updateControls() {
     const bounds = state.settings.bounds;
-    const colors = state.settings.colors;
     const sevs = severities();
     const controls = state.controls;
 
@@ -154,9 +149,9 @@ export function updateControls() {
         }
         segment.style.flexGrow = end - start;
         // лёгкий градиент: слева цвет чуть светлее
-        segment.style.background = `linear-gradient(90deg, color-mix(in srgb, ${colors[i]} 86%, #fff), ${colors[i]})`;
-        // чёрный или белый текст — что лучше читается на этом цвете
-        segment.style.color = inkFor(colors[i]);
+        const color = PALETTE[i].color;
+        segment.style.background = `linear-gradient(90deg, color-mix(in srgb, ${color} 86%, #fff), ${color})`;
+        segment.style.color = PALETTE[i].text;   // чёрный или белый текст — что лучше читается на этом цвете
     }
 
     // облачки над ручками: текст — значение границы, положение — над центром ручки.
@@ -167,10 +162,9 @@ export function updateControls() {
         bubble.style.left = `calc(var(--thumb) / 2 + (100% - var(--thumb)) * ${bounds[i] / 100})`;
     }
 
-    // плашки: цвет, диапазон текстом и число в поле границы
+    // плашки: диапазон текстом и число в поле границы
     for (let i = 0; i < 4; i++) {
         const tile = controls.tiles[i];
-        tile.color.value = colors[i];
         tile.range.textContent = rangeText(sevs[i]);
         if (tile.num !== null) {
             tile.num.value = bounds[i];

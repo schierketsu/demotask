@@ -2,9 +2,9 @@
 // настройки и нарисовать всё. Именно этот файл подключён в index.html, остальные браузер подгружает сам по import.
 //
 // Из чего состоит страница (все файлы — в public/js/):
-//   config.js   — постоянные значения: названия степеней, шаг, настройки по умолчанию
+//   config.js   — постоянные значения: названия и цвета степеней, шаг, границы по умолчанию
 //   state.js    — состояние страницы: всё, что страница «помнит»
-//   settings.js — настройки степеней: загрузка из браузера, проверка, сохранение, сдвиг границ
+//   settings.js — сдвиг границ между степенями
 //   calc.js     — расчёты: степени, колонки таблицы, подготовка данных для колец, полос и таблиц
 //   controls.js — панель настройки: ползунки, шкала, плашки с цветом и числом
 //   view.js     — отрисовка: чипы степеней и карточки метрик
@@ -12,20 +12,20 @@
 //   app.js      — запуск (этот файл)
 //
 // Кто кого подключает (стрелки только вниз, по кругу никто никого не импортирует):
-//   app.js      → controls.js, view.js, settings.js, state.js, charts.js
+//   app.js      → controls.js, view.js, state.js, charts.js
 //   controls.js → state.js, settings.js, calc.js, config.js, charts.js
 //   view.js     → state.js, calc.js, config.js, charts.js
 //   calc.js     → state.js, config.js, charts.js
-//   state.js    → settings.js → config.js
+//   state.js    → config.js
+//   settings.js → config.js
 
 import { state } from './state.js';
-import { saveSettings } from './settings.js';
 import { buildControls, updateControls } from './controls.js';
 import { render } from './view.js';
 import { byId, el } from './charts.js';
 
 
-/** Настройки изменились: сохранить их, обновить панель и перерисовать страницу */
+/** Границы изменились: обновить панель и перерисовать страницу */
 function apply() {
     updateControls();
     render();

@@ -2,7 +2,7 @@
 // (слева кольцо, легенда и полосы сервисов, справа таблица).
 // Что посчитать — берём из calc.js, как нарисовать кольцо, полосы и таблицу — из charts.js.
 
-import { DEGREES } from './config.js';
+import { DEGREES, PALETTE } from './config.js';
 import { state } from './state.js';
 import {
     allPcts, filteredRows, maxShownValue, mergeEmptyColumns, rangeText, serviceBars, severities,
@@ -109,6 +109,7 @@ function buildMetricCard(metric, items, sevs, max, columns, tableRows) {
             sub: rangeText(sevs[k]),
             value: total,
             color: sevs[k].color,
+            text: sevs[k].text,
         });
     }
     renderDonut(el('div', {}, summary), {
@@ -124,7 +125,7 @@ function buildMetricCard(metric, items, sevs, max, columns, tableRows) {
     // полосы по сервисам
     renderServiceBars(el('div', {}, summary), {
         items: items,
-        colors: state.settings.colors,
+        palette: PALETTE,
         names: DEGREES,
         selected: state.selected,
         max: max,
@@ -137,7 +138,7 @@ function buildMetricCard(metric, items, sevs, max, columns, tableRows) {
         metric: metric,
         columns: columns,
         rows: tableRows,
-        colors: state.settings.colors,
+        palette: PALETTE,
         selected: state.selected,
     });
 

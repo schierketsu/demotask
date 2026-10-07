@@ -2,15 +2,15 @@
 //
 // Что здесь происходит, по порядку:
 //   1. Общие помощники: формат чисел, склонения, создание элементов.
-//   2. Цвета: разбор «#RRGGBB», оттенки, цвет текста на цветном фоне.
-//   3. Всплывающая подсказка.
-//   4. Кольцевая диаграмма (SVG) с легендой.
-//   5. Полосы по сервисам.
-//   6. Таблица «как в Excel» и выравнивание её колонок.
+//   2. Всплывающая подсказка.
+//   3. Кольцевая диаграмма (SVG) с легендой.
+//   4. Полосы по сервисам.
+//   5. Таблица «как в Excel» и выравнивание её колонок.
 //
 // Сторонних библиотек нет — всё рисуется обычными HTML- и SVG-элементами.
 // Тексты из данных вставляются только через textContent: так они не могут превратиться в HTML-код.
-// Отсюда другие модули берут: el, byId, sum, inkFor, renderDonut, renderServiceBars, renderTable, equalizeColumns.
+// Цвета сюда передают готовыми (PALETTE из config.js) — здесь они не вычисляются.
+// Отсюда другие модули берут: el, byId, sum, renderDonut, renderServiceBars, renderTable, equalizeColumns.
 
 
 // ============================================================================
@@ -95,55 +95,7 @@ function isDimmed(index, selected) {
 
 
 // ============================================================================
-// 2. Цвета
-// ============================================================================
-
-/** Цвет «#RRGGBB» → три числа от 0 до 255 (красный, зелёный, синий): '#4bd163' → [75, 209, 99] */
-function hexToRgb(hex) {
-    const red = parseInt(hex.slice(1, 3), 16);     // 16 — цифры шестнадцатеричные: 'd1' → 209
-    const green = parseInt(hex.slice(3, 5), 16);
-    const blue = parseInt(hex.slice(5, 7), 16);
-    return [red, green, blue];
-}
-
-/** Полупрозрачный цвет — фон для нулевых ячеек: tint('#4bd163', 0.16) → 'rgba(75, 209, 99, 0.16)' */
-function tint(hex, alpha) {
-    const rgb = hexToRgb(hex);
-    return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${alpha})`;
-}
-
-/** Цвет, смешанный с белым; share — доля белого от 0 до 1: lighten('#dc2f3a', 0.25) → '#e5636b' */
-function lighten(hex, share) {
-    let result = '#';
-    for (const channel of hexToRgb(hex)) {
-        const mixed = Math.round(channel + (255 - channel) * share);   // сдвигаем канал к 255 — к белому
-        result = result + mixed.toString(16).padStart(2, '0');        // обратно в две шестнадцатеричные цифры
-    }
-    return result;
-}
-
-/**
- * Каким цветом писать текст на этом фоне — почти чёрным или белым, смотря что лучше читается.
- * Считаем яркость фона по формуле из стандарта доступности WCAG и сравниваем контраст с чёрным и с белым.
- */
-export function inkFor(hex) {
-    // каналы 0–255 → «линейные» значения 0–1: так считается яркость, которую видит глаз
-    const linear = [];
-    for (const channel of hexToRgb(hex)) {
-        const value = channel / 255;
-        linear.push(value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
-    }
-    // зелёный глаз видит ярче всего, синий — слабее всего
-    const luminance = 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
-
-    const contrastWithBlack = (luminance + 0.05) / 0.05;
-    const contrastWithWhite = 1.05 / (luminance + 0.05);
-    return contrastWithBlack > contrastWithWhite ? '#0b0b0b' : '#ffffff';
-}
-
-
-// ============================================================================
-// 3. Всплывающая подсказка
+// 2. Всплывающая подсказка
 // ============================================================================
 
 // Один общий элемент подсказки на всю страницу (он есть в index.html)
@@ -200,7 +152,7 @@ function attachTooltip(element, getContent) {
 
 
 // ============================================================================
-// 4. Кольцевая диаграмма
+// 3. Кольцевая диаграмма
 // ============================================================================
 
 // Размеры кольца в пикселях
@@ -235,8 +187,9 @@ function sectorPath(startAngle, endAngle) {
 /**
  * Кольцевая диаграмма с легендой справа. Рисует внутрь host, заменяя то, что там было.
  *   parts — части кольца, по одной на степень:
- *           [{ label: 'Частичная', short: 'Ч', sub: '21–50%', value: 10, color: '#fbc22c' }, …]
- *           label — название (для подсказок), short — буква на секторе, sub — диапазон, value — сколько аварий
+ *           [{ label: 'Частичная', short: 'Ч', sub: '21–50%', value: 10, color: '#fbc22c', text: '#0b0b0b' }, …]
+ *           label — название (для подсказок), short — буква на секторе, sub — диапазон, value — сколько аварий,
+ *           color — цвет сектора, text — цвет буквы на нём
  *   selected — номер выбранной степени или null
  *   onSelect(i) — что делать при клике на сектор или строку легенды
  */
@@ -312,7 +265,7 @@ function drawSectors(svg, parts, total, selected, onSelect) {
                 class: 'slice-num',
                 x: DONUT_CENTER + middleRadius * Math.sin(middleAngle),
                 y: DONUT_CENTER - middleRadius * Math.cos(middleAngle) + 4,   // +4 — опустить на полвысоты буквы
-                fill: inkFor(part.color),
+                fill: part.text,   // чёрная или белая буква — что лучше читается на цвете сектора
             }, svg);
             letter.textContent = part.short;
             if (isDimmed(i, selected)) {
@@ -383,13 +336,13 @@ function drawLegend(wrapper, parts, total, selected, onSelect) {
 
 
 // ============================================================================
-// 5. Полосы по сервисам
+// 4. Полосы по сервисам
 // ============================================================================
 
 /**
  * Полосы по сервисам: у каждого сервиса полоса из цветных кусков — сколько у него аварий каждой степени.
  *   items — [{ name: 'Сервис 4', parts: [5, 6, 1, 0] }] — количество аварий по степеням
- *   colors, names — цвета и названия степеней
+ *   palette — цвета степеней (PALETTE из config.js), names — названия степеней
  *   selected — номер выбранной степени или null; если степень выбрана — на полосах только она
  *   max — самое большое значение среди всех карточек: от него считается длина полос,
  *         поэтому полосы в разных карточках можно сравнивать
@@ -397,7 +350,7 @@ function drawLegend(wrapper, parts, total, selected, onSelect) {
  */
 export function renderServiceBars(host, options) {
     const items = options.items;
-    const colors = options.colors;
+    const palette = options.palette;
     const names = options.names;
     const selected = options.selected;
     const max = options.max;
@@ -435,9 +388,10 @@ export function renderServiceBars(host, options) {
             if (!count || isDimmed(i, selected)) {
                 continue;   // у степени нет аварий или выбрана другая степень — куска нет
             }
-            const piece = el('span', { style: `flex-grow: ${count}; background: ${colors[i]}` }, bar);
+            const color = palette[i].color;
+            const piece = el('span', { style: `flex-grow: ${count}; background: ${color}` }, bar);
             attachTooltip(piece, function () {
-                return { title: service.name, rows: [{ value: count, label: names[i].toLowerCase(), color: colors[i] }] };
+                return { title: service.name, rows: [{ value: count, label: names[i].toLowerCase(), color: color }] };
             });
         }
 
@@ -448,7 +402,7 @@ export function renderServiceBars(host, options) {
 
 
 // ============================================================================
-// 6. Таблица «как в Excel»
+// 5. Таблица «как в Excel»
 // ============================================================================
 
 // Самая узкая допустимая колонка диапазона, в пикселях: шире самой длинной подписи («91–100»)
@@ -477,20 +431,20 @@ function groupBy(rows, getKey) {
  *   columns — колонки диапазонов [{ from: 21, to: 30, sev: 1 }], sev — номер степени колонки.
  *             Колонки общие для всех метрик, поэтому таблицы разных метрик совпадают столбец в столбец
  *   rows — сервисы; rows[].counts[id метрики] — сколько аварий попало в каждую колонку
- *   colors — цвета степеней; selected — номер выбранной степени или null
+ *   palette — цвета степеней (PALETTE из config.js); selected — номер выбранной степени или null
  */
 export function renderTable(host, options) {
     const metric = options.metric;
     const columns = options.columns;
     const rows = options.rows;
-    const colors = options.colors;
+    const palette = options.palette;
     const selected = options.selected;
 
     // ячейки с числами для одной строки: counts[i] — сколько аварий в колонке i
     function addValueCells(tr, counts) {
         for (let i = 0; i < counts.length; i++) {
             const cell = el('td', {}, tr, numberFormat.format(counts[i]));
-            paintCell(cell, counts[i], colors[columns[i].sev]);
+            paintCell(cell, counts[i], palette[columns[i].sev]);
             if (isDimmed(columns[i].sev, selected)) {
                 cell.classList.add('dim');
             }
@@ -499,7 +453,7 @@ export function renderTable(host, options) {
 
     const table = el('table', { class: 'grid' });
     addColumnGroup(table, columns.length);
-    addHeader(table, columns, colors, selected);
+    addHeader(table, columns, palette, selected);
 
     const body = el('tbody', {}, table);
 
@@ -542,16 +496,15 @@ function addColumnGroup(table, valueColumnCount) {
 }
 
 /** Строка заголовков: «№ / Операция / Сервис» и подписи диапазонов на цвете своей степени */
-function addHeader(table, columns, colors, selected) {
+function addHeader(table, columns, palette, selected) {
     const head = el('tr', {}, el('thead', {}, table));
     for (const title of ['№', 'Операция', 'Сервис']) {
         el('th', { class: 'name' }, head, title);
     }
     for (const column of columns) {
         const cell = el('th', { class: 'bucket' }, head, columnTitle(column));
-        const color = colors[column.sev];
-        cell.style.backgroundColor = color;
-        cell.style.color = inkFor(color);
+        cell.style.backgroundColor = palette[column.sev].color;
+        cell.style.color = palette[column.sev].text;
         if (isDimmed(column.sev, selected)) {
             cell.classList.add('dim');
         }
@@ -577,17 +530,15 @@ function sumByColumn(rows, metric, columnCount) {
 }
 
 /**
- * Покрасить ячейку цветом степени её колонки:
- * есть аварии — чуть высветленный цвет и жирное число, нет — бледный оттенок и серый ноль.
+ * Покрасить ячейку цветом степени её колонки (colors — набор цветов степени из PALETTE):
+ * есть аварии — чуть высветленный цвет и жирное тёмное число, нет — бледный оттенок и серый ноль.
  */
-function paintCell(cell, count, color) {
+function paintCell(cell, count, colors) {
     if (count) {
-        const fill = lighten(color, 0.25);
-        cell.style.backgroundColor = fill;
-        cell.style.color = inkFor(fill);
-        cell.classList.add('nz');   // nz = non-zero; в CSS такие числа жирные
+        cell.style.backgroundColor = colors.cell;
+        cell.classList.add('nz');   // nz = non-zero; в CSS такие числа жирные и тёмные
     } else {
-        cell.style.backgroundColor = tint(color, 0.16);
+        cell.style.backgroundColor = colors.empty;
         cell.style.color = 'var(--text-2)';
     }
 }

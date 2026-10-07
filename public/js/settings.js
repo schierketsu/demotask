@@ -1,7 +1,7 @@
-// settings.js — настройки степеней (границы и цвета): загрузка из браузера, проверка, сохранение, сдвиг границ.
-// Сами настройки лежат в state.settings (state.js) — сюда их передают параметром.
+// settings.js — сдвиг границ между степенями деградации.
+// Сами границы лежат в state.settings.bounds (state.js) — сюда их передают параметром.
 
-import { STEP, STORAGE_KEY, defaultSettings } from './config.js';
+import { STEP } from './config.js';
 
 /**
  * Поставить границу номер i (0, 1 или 2) из списка bounds в значение value.

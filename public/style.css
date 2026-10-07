@@ -164,10 +164,8 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 
 .sev-tiles { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
 .sev-tile { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
-.sev-tile input[type="color"] { width: 44px; height: 44px; padding: 0; border: 0; background: none; cursor: pointer; flex: none; }
-.sev-tile input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
-.sev-tile input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 8px; }
-.sev-tile input[type="color"]::-moz-color-swatch { border: 0; border-radius: 8px; }
+/* квадратик цвета степени — только для наглядности, цвет не меняется */
+.sev-swatch { width: 44px; height: 44px; border-radius: 8px; flex: none; }
 .sev-edit { display: block; margin-top: 4px; color: var(--text-2); }
 /* без системных стрелок: значение меняется вводом, клавишами ↑/↓ или ползунком на шкале */
 .sev-edit input { width: 5em; text-align: center; -moz-appearance: textfield; appearance: textfield; }
@@ -228,6 +226,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
 /* жирные: строки «Всего» и групп целиком, в остальных — ненулевые числа */
 .grid tr.sum td, .grid td.nz { font-weight: 700; }
+.grid td.nz { color: var(--text); }   /* на высветленных цветах степеней тёмное число читается лучше всего */
 .grid th.bucket { font-weight: 400; min-width: 36px; }
 
 /* --- подсказка --- */
