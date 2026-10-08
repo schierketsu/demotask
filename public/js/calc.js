@@ -6,7 +6,7 @@
 //   2. Сервисы: фильтр по группе операций, статистика по сервисам для полос и их общий масштаб.
 //   3. Таблица: колонки (диапазоны, разрезанные границами степеней), склейка пустых колонок, подсчёт по колонкам.
 
-import { DEGREES, PALETTE } from './config.js';
+import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 
 
@@ -25,10 +25,10 @@ export function sum(numbers) {
 // ============================================================================
 
 /** Номер степени деградации для процента: 0 — минимальная, 1 — частичная, 2 — значительная, 3 — полная */
-export function severityOf(pct) {
+export function stepenOf(percent) {
     const bounds = state.settings.bounds;
     for (let i = 0; i < bounds.length; i++) {
-        if (pct <= bounds[i]) {
+        if (percent <= bounds[i]) {
             return i;
         }
     }
@@ -38,9 +38,9 @@ export function severityOf(pct) {
 /**
  * Диапазоны четырёх степеней при текущих границах — для подписей: название, первая буква,
  * диапазон процентов, цвет и цвет текста на нём.
- * Например: { name: 'Частичная', short: 'Ч', from: 21, to: 50, color: '#fbc22c', text: '#0b0b0b' }
+ * Например: { name: 'Частичная', letter: 'Ч', from: 21, to: 50, color: '#fbc22c', textColor: '#0b0b0b' }
  */
-export function getSeverityRanges() {
+export function getStepenRanges() {
     const bounds = state.settings.bounds;
     const result = [];
 
@@ -50,28 +50,28 @@ export function getSeverityRanges() {
         // конец диапазона: у последней степени 100, у остальных — своя граница
         const to = i < 3 ? bounds[i] : 100;
         result.push({
-            name: DEGREES[i],
-            short: DEGREES[i].charAt(0),
+            name: STEPEN_NAMES[i],
+            letter: STEPEN_NAMES[i].charAt(0),
             from: from,
             to: to,
-            color: PALETTE[i].color,
-            text: PALETTE[i].text,
+            color: STEPEN_COLORS[i].color,
+            textColor: STEPEN_COLORS[i].textColor,
         });
     }
     return result;
 }
 
 /** Подпись диапазона степени: «21–50%» */
-export function rangeText(severity) {
-    return `${severity.from}–${severity.to}%`;
+export function formatRange(stepen) {
+    return `${stepen.from}–${stepen.to}%`;
 }
 
 /** Сколько аварий каждой степени: [минимальных, частичных, значительных, полных] */
-function countBySeverity(pcts) {
+function countByStepen(percents) {
     const counts = [0, 0, 0, 0];
-    for (const pct of pcts) {
-        const severity = severityOf(pct);
-        counts[severity] = counts[severity] + 1;
+    for (const percent of percents) {
+        const stepen = stepenOf(percent);
+        counts[stepen] = counts[stepen] + 1;
     }
     return counts;
 }
@@ -82,15 +82,15 @@ function countBySeverity(pcts) {
 // ============================================================================
 
 /** Строки сервисов с учётом фильтра «Группа операций» */
-export function filteredRows() {
+export function rowsInSelectedGroup() {
     const allRows = state.data.rows;
-    if (state.opcat === '') {
+    if (state.selectedGroupId === '') {
         return allRows;   // группа не выбрана — показываем все
     }
     const result = [];
     for (const row of allRows) {
         // в выпадающем списке значение хранится текстом, а category_id — число, поэтому сравниваем как текст
-        if (String(row.category_id) === state.opcat) {
+        if (String(row.category_id) === state.selectedGroupId) {
             result.push(row);
         }
     }
@@ -100,27 +100,27 @@ export function filteredRows() {
 /**
  * Статистика сервисов для одной метрики — сколько у каждого сервиса аварий каждой степени.
  * Только считает; полосы по ней потом рисует view.js.
- * Например: [{ name: 'Сервис 1', parts: [2, 1, 0, 0] }, …]
+ * Например: [{ name: 'Сервис 1', stepenCounts: [2, 1, 0, 0] }, …]
  */
 export function buildServiceStats(rows, metric) {
     const stats = [];
     for (const row of rows) {
-        stats.push({ name: row.service, parts: countBySeverity(row.pcts[metric.id]) });
+        stats.push({ name: row.service, stepenCounts: countByStepen(row.percents[metric.id]) });
     }
     return stats;
 }
 
 /** Сколько аварий показывать на полосе сервиса: все, или только выбранной степени */
-function shownValue(parts) {
-    return state.selected === null ? sum(parts) : parts[state.selected];
+function shownCount(stepenCounts) {
+    return state.selectedStepen === null ? sum(stepenCounts) : stepenCounts[state.selectedStepen];
 }
 
 /** Самое большое показываемое значение среди всех сервисов всех метрик (не меньше 1) — общий масштаб полос */
-export function maxShownValue(statsByMetric) {
+export function maxShownCount(statsByMetric) {
     let max = 1;
     for (const stats of statsByMetric) {
         for (const item of stats) {
-            const value = shownValue(item.parts);
+            const value = shownCount(item.stepenCounts);
             if (value > max) {
                 max = value;
             }
@@ -135,9 +135,9 @@ export function maxShownValue(statsByMetric) {
 // ============================================================================
 
 /** Есть ли в списке хоть один процент от from до to включительно */
-function hasPctInRange(pcts, from, to) {
-    for (const pct of pcts) {
-        if (pct >= from && pct <= to) {
+function hasPercentInRange(percents, from, to) {
+    for (const percent of percents) {
+        if (percent >= from && percent <= to) {
             return true;
         }
     }
@@ -145,10 +145,10 @@ function hasPctInRange(pcts, from, to) {
 }
 
 /** Сколько процентов из списка попадает в диапазон от from до to включительно */
-function countPctInRange(pcts, from, to) {
+function countPercentsInRange(percents, from, to) {
     let count = 0;
-    for (const pct of pcts) {
-        if (pct >= from && pct <= to) {
+    for (const percent of percents) {
+        if (percent >= from && percent <= to) {
             count = count + 1;
         }
     }
@@ -159,9 +159,9 @@ function countPctInRange(pcts, from, to) {
  * Колонки таблицы: диапазоны из базы (0–10, 11–20, …), разрезанные границами степеней,
  * чтобы каждая колонка целиком относилась к одной степени.
  * Например, при границе 25 диапазон 21–30 превращается в две колонки: 21–25 и 26–30.
- * Возвращает список колонок [{ from, to, sev }], где sev — номер степени колонки.
+ * Возвращает список колонок [{ from, to, stepen }], где stepen — номер степени колонки.
  */
-export function tableColumns() {
+export function buildTableColumns() {
     const columns = [];
     for (const bucket of state.data.buckets) {
         let from = bucket.pct_from;
@@ -169,46 +169,46 @@ export function tableColumns() {
         // если внутри диапазона проходит граница степени — отрезаем кусок до неё
         for (const bound of state.settings.bounds) {
             if (bound >= from && bound < bucket.pct_to) {
-                columns.push({ from: from, to: bound, sev: severityOf(bound) });
+                columns.push({ from: from, to: bound, stepen: stepenOf(bound) });
                 from = bound + 1;
             }
         }
 
         // остаток диапазона — ещё одна колонка
-        columns.push({ from: from, to: bucket.pct_to, sev: severityOf(bucket.pct_to) });
+        columns.push({ from: from, to: bucket.pct_to, stepen: stepenOf(bucket.pct_to) });
     }
     return columns;
 }
 
 /**
  * Соседние пустые колонки одной степени склеиваются в одну (43–50, 51–60, 61–70 → 43–70),
- * чтобы таблица не разрасталась нулями. pcts — все проценты, которые попадут в таблицу.
+ * чтобы таблица не разрасталась нулями. percents — все проценты, которые попадут в таблицу.
  */
-export function mergeEmptyColumns(columns, pcts) {
+export function mergeEmptyColumns(columns, percents) {
     const result = [];
     for (const column of columns) {
-        const empty = !hasPctInRange(pcts, column.from, column.to);
+        const isEmpty = !hasPercentInRange(percents, column.from, column.to);
 
         // последняя уже добавленная колонка (или null, если ещё ничего не добавили)
         const previous = result.length > 0 ? result[result.length - 1] : null;
 
-        const canMerge = empty && previous !== null && previous.empty && previous.sev === column.sev;
+        const canMerge = isEmpty && previous !== null && previous.isEmpty && previous.stepen === column.stepen;
         if (canMerge) {
             previous.to = column.to;   // растягиваем предыдущую колонку
         } else {
-            result.push({ from: column.from, to: column.to, sev: column.sev, empty: empty });
+            result.push({ from: column.from, to: column.to, stepen: column.stepen, isEmpty: isEmpty });
         }
     }
     return result;
 }
 
 /** Все проценты всех показанных сервисов по всем метрикам — одним списком */
-export function allPcts(rows) {
+export function allPercents(rows) {
     const result = [];
     for (const row of rows) {
         for (const metric of state.data.metrics) {
-            for (const pct of row.pcts[metric.id]) {
-                result.push(pct);
+            for (const percent of row.percents[metric.id]) {
+                result.push(percent);
             }
         }
     }
@@ -219,15 +219,15 @@ export function allPcts(rows) {
  * Строки для таблицы: данные сервиса + counts — сколько аварий попало в каждую колонку,
  * отдельно по каждой метрике: counts[id метрики] = [число в 1-й колонке, число во 2-й, …]
  */
-export function tableRowsWithCounts(rows, columns) {
+export function buildTableRows(rows, columns) {
     const result = [];
     for (const row of rows) {
         const counts = {};
         for (const metric of state.data.metrics) {
-            const pcts = row.pcts[metric.id];
+            const percents = row.percents[metric.id];
             const countsInColumns = [];
             for (const column of columns) {
-                countsInColumns.push(countPctInRange(pcts, column.from, column.to));
+                countsInColumns.push(countPercentsInRange(percents, column.from, column.to));
             }
             counts[metric.id] = countsInColumns;
         }
@@ -239,7 +239,7 @@ export function tableRowsWithCounts(rows, columns) {
             operation_num: row.operation_num,
             operation: row.operation,
             service: row.service,
-            counts: counts,
+            columnCounts: counts,
         });
     }
     return result;

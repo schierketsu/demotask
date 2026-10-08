@@ -48,10 +48,10 @@ button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
 /* Чипы, списки, поля ввода и кнопки — в одном стиле: «таблетка» с тонкой рамкой; выбранное и активное — тёмной рамкой */
-.chip, select, .sev-edit input, .card-head button {
+.chip, select, .stepen-bound input, .card-head button {
     padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg);
 }
-.chip[aria-checked="true"], select:focus-visible, .sev-edit input:focus-visible {
+.chip[aria-checked="true"], select:focus-visible, .stepen-bound input:focus-visible {
     border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none;
 }
 
@@ -89,8 +89,8 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
 .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 
-.key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
-.dim { opacity: .25; }
+.color-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
+.dimmed { opacity: .25; }
 .empty { color: var(--text-2); padding: 12px 0; }
 
 /* --- шкала степеней: цветная «таблетка» с номерами и названиями, три ручки и значения над ними --- */
@@ -162,15 +162,15 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .range-scale span { position: absolute; top: 0; padding-top: 14px; transform: translateX(-50%); }
 .range-scale span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 9px; background: #cfd4dc; }
 
-.sev-tiles { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.sev-tile { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
+.stepen-tiles { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
+.stepen-tile { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
 /* квадратик цвета степени — только для наглядности, цвет не меняется */
-.sev-swatch { width: 44px; height: 44px; border-radius: 8px; flex: none; }
-.sev-edit { display: block; margin-top: 4px; color: var(--text-2); }
+.stepen-swatch { width: 44px; height: 44px; border-radius: 8px; flex: none; }
+.stepen-bound { display: block; margin-top: 4px; color: var(--text-2); }
 /* без системных стрелок: значение меняется вводом, клавишами ↑/↓ или ползунком на шкале */
-.sev-edit input { width: 5em; text-align: center; -moz-appearance: textfield; appearance: textfield; }
-.sev-edit input::-webkit-inner-spin-button, .sev-edit input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.sev-edit input[readonly] { cursor: default; }  /* «до 100 %» у последней степени — не редактируется */
+.stepen-bound input { width: 5em; text-align: center; -moz-appearance: textfield; appearance: textfield; }
+.stepen-bound input::-webkit-inner-spin-button, .stepen-bound input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.stepen-bound input[readonly] { cursor: default; }  /* «до 100 %» у последней степени — не редактируется */
 
 /* --- карточка метрики: слева сводка (кольцо, легенда, полосы сервисов), справа детализация (таблица),
    между ними линия на всю высоту карточки; на узком экране — одно под другим.
@@ -194,7 +194,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .donut .slice { stroke: var(--bg); stroke-width: 2px; cursor: pointer; transition: opacity .15s; }
 .donut .slice.full { stroke: none; }
 .donut .slice:hover { opacity: .85; }
-.donut .slice-num { font-size: var(--fs-s); text-anchor: middle; pointer-events: none; }
+.donut .slice-letter { font-size: var(--fs-s); text-anchor: middle; pointer-events: none; }
 .donut-value { font-size: var(--fs-l); font-weight: 700; fill: var(--text); text-anchor: middle; }
 .donut-label { font-size: var(--fs-s); fill: var(--text-2); text-anchor: middle; }
 /* строки легенды не переносятся; не помещается рядом с кольцом — легенда целиком уходит под него */
@@ -205,7 +205,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
     font-variant-numeric: tabular-nums; transition: opacity .15s;
 }
 .legend-row:hover, .legend-row[aria-pressed="true"] { background: var(--wash); }
-.legend-value, .legend-pct { text-align: right; }
+.legend-value, .legend-percent { text-align: right; }
 
 /* --- полосы по сервисам --- */
 .bars-row { display: grid; grid-template-columns: minmax(80px, 110px) 1fr; gap: 12px; align-items: center; padding: 3px 0; }
@@ -225,9 +225,9 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .grid th.name { width: 1%; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
 /* жирные: строки «Всего» и групп целиком, в остальных — ненулевые числа */
-.grid tr.sum td, .grid td.nz { font-weight: 700; }
-.grid td.nz { color: var(--text); }   /* на высветленных цветах степеней тёмное число читается лучше всего */
-.grid th.bucket { font-weight: 400; min-width: 36px; }
+.grid tr.sum td, .grid td.has-accidents { font-weight: 700; }
+.grid td.has-accidents { color: var(--text); }   /* на высветленных цветах степеней тёмное число читается лучше всего */
+.grid th.range-column { font-weight: 400; min-width: 36px; }
 
 /* --- подсказка --- */
 .tooltip {
@@ -235,7 +235,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
     background: var(--bg); border: 1px solid var(--line); border-radius: 8px;
     box-shadow: 0 4px 16px rgba(0, 0, 0, .12); padding: 8px 10px; font-size: var(--fs-s);
 }
-.tip-title { color: var(--text-2); margin-bottom: 4px; }
-.tip-row { display: flex; align-items: center; gap: 6px; }
-.tip-key { width: 12px; height: 3px; border-radius: 1px; }
-.tip-label { color: var(--text-2); }
+.tooltip-title { color: var(--text-2); margin-bottom: 4px; }
+.tooltip-row { display: flex; align-items: center; gap: 6px; }
+.tooltip-key { width: 12px; height: 3px; border-radius: 1px; }
+.tooltip-label { color: var(--text-2); }

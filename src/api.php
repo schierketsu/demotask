@@ -63,7 +63,7 @@ function data(PDO $pdo): array
     // все случаи деградации 
     $cases = query($pdo, 'SELECT service_id, metric_id, pct FROM degradation_case ORDER BY pct');
 
-    // прогоняю все сервисы (8) в ассоциативный массивы приписывая доп.поле pcts в котором два слота пустых metric
+    // прогоняю все сервисы (8) в ассоциативный массивы приписывая доп.поле percents (проценты деградации) в котором два слота пустых metric
     //Сервис 1
     //├── метрика 1 → []
     //└── метрика 2 → []
@@ -71,9 +71,9 @@ function data(PDO $pdo): array
     foreach ($services as $service) {
         $id = $service['service_id'];
         $rows[$id] = $service;
-        $rows[$id]['pcts'] = [];
+        $rows[$id]['percents'] = [];
         foreach ($metrics as $metric) {
-            $rows[$id]['pcts'][$metric['id']] = [];
+            $rows[$id]['percents'][$metric['id']] = [];
         }
     }
 
@@ -82,7 +82,7 @@ function data(PDO $pdo): array
         $serviceId = $case['service_id'];
         $metricId = $case['metric_id'];
         //пустое [] = «добавить в конец списка» — чтобы не перезаписывать предыдущие проценты
-        $rows[$serviceId]['pcts'][$metricId][] = $case['pct'];   // [] = «добавить в конец списка»
+        $rows[$serviceId]['percents'][$metricId][] = $case['pct'];   // [] = «добавить в конец списка»
     }
 
     return [

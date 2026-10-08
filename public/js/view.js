@@ -11,13 +11,13 @@
 //
 // Сторонних библиотек нет — всё рисуется обычными HTML- и SVG-элементами.
 // Тексты из данных вставляются только через textContent: так они не могут превратиться в HTML-код.
-// Отсюда другие модули берут: render, а также помощники el и byId.
+// Отсюда другие модули берут: render, а также помощники createElement и byId.
 
-import { DEGREES, PALETTE } from './config.js';
+import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 import {
-    allPcts, buildServiceStats, filteredRows, getSeverityRanges, maxShownValue, mergeEmptyColumns, rangeText, sum,
-    tableColumns, tableRowsWithCounts,
+    allPercents, buildServiceStats, rowsInSelectedGroup, getStepenRanges, maxShownCount, mergeEmptyColumns, formatRange, sum,
+    buildTableColumns, buildTableRows,
 } from './calc.js';
 
 
@@ -54,9 +54,9 @@ function accidentsWord(count) {
 
 /**
  * Создать HTML-элемент: тег, атрибуты, родитель (в конец которого вставить) и текст — последние два необязательны.
- * Например: el('span', { class: 'muted' }, row, '0–20%') → <span class="muted">0–20%</span> в конце row.
+ * Например: createElement('span', { class: 'muted' }, row, '0–20%') → <span class="muted">0–20%</span> в конце row.
  */
-export function el(tag, attrs = {}, parent = null, text = null) {
+export function createElement(tag, attrs = {}, parent = null, text = null) {
     const element = document.createElement(tag);
     for (const name of Object.keys(attrs)) {
         element.setAttribute(name, attrs[name]);
@@ -75,8 +75,8 @@ export function byId(id) {
     return document.getElementById(id);
 }
 
-/** То же, что el, но для SVG-фигур (круг, контур, текст внутри <svg>) */
-function svgEl(tag, attrs, parent) {
+/** То же, что createElement, но для SVG-фигур (круг, контур, текст внутри <svg>) */
+function createSvgElement(tag, attrs, parent) {
     const element = document.createElementNS(SVG_NS, tag);
     for (const name of Object.keys(attrs)) {
         element.setAttribute(name, attrs[name]);
@@ -89,7 +89,7 @@ function svgEl(tag, attrs, parent) {
 
 /** Приглушать ли элемент степени index: да, если выбрана какая-то другая степень */
 function isDimmed(index) {
-    return state.selected !== null && state.selected !== index;
+    return state.selectedStepen !== null && state.selectedStepen !== index;
 }
 
 
@@ -99,8 +99,8 @@ function isDimmed(index) {
 
 /** Перерисовать всё, что зависит от данных и настроек: чипы и карточки метрик */
 export function render() {
-    const ranges = getSeverityRanges();
-    const rows = filteredRows();
+    const ranges = getStepenRanges();
+    const rows = rowsInSelectedGroup();
     const metrics = state.data.metrics;
 
     renderChips(ranges);
@@ -112,18 +112,18 @@ export function render() {
     }
 
     // общий масштаб полос — самое большое значение среди всех метрик (не меньше 1)
-    const max = maxShownValue(statsByMetric);
+    const maxCount = maxShownCount(statsByMetric);
 
     // колонки таблиц общие для всех метрик, чтобы таблицы совпадали столбец в столбец:
     // склеиваются только колонки, пустые во всех метриках
-    const columns = mergeEmptyColumns(tableColumns(), allPcts(rows));
-    const tableRows = tableRowsWithCounts(rows, columns);
+    const columns = mergeEmptyColumns(buildTableColumns(), allPercents(rows));
+    const tableRows = buildTableRows(rows, columns);
 
     // по карточке на метрику
     const container = byId('metric-rows');
     container.replaceChildren();   // убираем старые карточки
     for (let i = 0; i < metrics.length; i++) {
-        const card = buildMetricCard(metrics[i], statsByMetric[i], ranges, max, columns, tableRows);
+        const card = buildMetricCard(metrics[i], statsByMetric[i], ranges, maxCount, columns, tableRows);
         container.append(card);
     }
 
@@ -135,8 +135,8 @@ export function render() {
 }
 
 /** Клик по сектору кольца или строке легенды: выбрать степень; повторный клик — снять выбор */
-function toggleSeverity(i) {
-    state.selected = state.selected === i ? null : i;
+function toggleStepen(i) {
+    state.selectedStepen = state.selectedStepen === i ? null : i;
     render();
 }
 
@@ -145,10 +145,10 @@ function renderChips(ranges) {
     const chips = byId('chips');
     chips.replaceChildren();   // убираем старые чипы
 
-    el('span', { class: 'muted' }, chips, 'Степень деградации');
+    createElement('span', { class: 'muted' }, chips, 'Степень деградации');
     chips.append(createChip('Все', null, null, null));
     for (let i = 0; i < ranges.length; i++) {
-        chips.append(createChip(rangeText(ranges[i]), i, ranges[i].color, ranges[i].name));
+        chips.append(createChip(formatRange(ranges[i]), i, ranges[i].color, ranges[i].name));
     }
 }
 
@@ -157,19 +157,19 @@ function renderChips(ranges) {
  * и для экранного диктора. index — номер степени (null у чипа «Все»).
  */
 function createChip(label, index, color, name) {
-    const attrs = { type: 'button', role: 'radio', class: 'chip', 'aria-checked': String(state.selected === index) };
+    const attrs = { type: 'button', role: 'radio', class: 'chip', 'aria-checked': String(state.selectedStepen === index) };
     if (name !== null) {
         attrs.title = name;
         attrs['aria-label'] = `${name}, ${label}`;
     }
-    const button = el('button', attrs);
+    const button = createElement('button', attrs);
     if (color !== null) {
-        el('span', { class: 'key', style: `background: ${color}` }, button);   // цветной кружок
+        createElement('span', { class: 'color-key', style: `background: ${color}` }, button);   // цветной кружок
     }
     button.append(label);
 
     button.addEventListener('click', function () {
-        state.selected = index;
+        state.selectedStepen = index;
         render();
     });
     return button;
@@ -178,44 +178,44 @@ function createChip(label, index, color, name) {
 /**
  * Карточка одной метрики: слева сводка (кольцо, легенда, полосы сервисов), справа таблица.
  *   metric — метрика ({ id, name, label }), stats — статистика её сервисов из buildServiceStats,
- *   ranges — диапазоны степеней, max — общий масштаб полос, columns и tableRows — данные таблицы
+ *   ranges — диапазоны степеней, maxCount — общий масштаб полос, columns и tableRows — данные таблицы
  */
-function buildMetricCard(metric, stats, ranges, max, columns, tableRows) {
-    const card = el('section', { class: 'card metric-card' });
+function buildMetricCard(metric, stats, ranges, maxCount, columns, tableRows) {
+    const card = createElement('section', { class: 'card metric-card' });
 
     // ---------- слева: сводка ----------
-    const summary = el('div', { class: 'metric-summary' }, card);
-    el('h2', {}, summary, metric.label);
+    const summary = createElement('div', { class: 'metric-summary' }, card);
+    createElement('h2', {}, summary, metric.label);
 
     // кольцо: сколько всего аварий каждой степени
     const donutParts = [];
-    for (let k = 0; k < 4; k++) {
+    for (let stepen = 0; stepen < 4; stepen++) {
         let total = 0;
         for (const item of stats) {
-            total = total + item.parts[k];
+            total = total + item.stepenCounts[stepen];
         }
         donutParts.push({
-            label: ranges[k].name,
-            short: ranges[k].short,
-            sub: rangeText(ranges[k]),
-            value: total,
-            color: ranges[k].color,
-            text: ranges[k].text,
+            name: ranges[stepen].name,
+            letter: ranges[stepen].letter,
+            rangeLabel: formatRange(ranges[stepen]),
+            count: total,
+            color: ranges[stepen].color,
+            textColor: ranges[stepen].textColor,
         });
     }
-    renderDonut(el('div', {}, summary), donutParts);
+    renderDonut(createElement('div', {}, summary), donutParts);
 
     // заголовок над полосами: «Сервисы» или, если выбрана степень, «Сервисы · частичная деградация»
-    const title = state.selected === null ? 'Сервисы' : `Сервисы · ${ranges[state.selected].name.toLowerCase()} деградация`;
-    el('h3', {}, summary, title);
+    const title = state.selectedStepen === null ? 'Сервисы' : `Сервисы · ${ranges[state.selectedStepen].name.toLowerCase()} деградация`;
+    createElement('h3', {}, summary, title);
 
     // полосы по сервисам
-    renderServiceBars(el('div', {}, summary), stats, max);
+    renderServiceBars(createElement('div', {}, summary), stats, maxCount);
 
     // ---------- справа: детализация (таблица) ----------
-    const detail = el('div', { class: 'metric-detail' }, card);
-    el('div', { class: 'detail-title muted' }, detail, 'Детализация');
-    renderTable(el('div', { class: 'table-wrap' }, detail), metric, columns, tableRows);
+    const detail = createElement('div', { class: 'metric-detail' }, card);
+    createElement('div', { class: 'detail-title muted' }, detail, 'Детализация');
+    renderTable(createElement('div', { class: 'table-wrap' }, detail), metric, columns, tableRows);
 
     return card;
 }
@@ -234,12 +234,12 @@ const tooltip = byId('tooltip');
  */
 function showTooltip(title, rows, x, y) {
     tooltip.replaceChildren();   // убираем прошлое содержимое
-    el('div', { class: 'tip-title' }, tooltip, title);
+    createElement('div', { class: 'tooltip-title' }, tooltip, title);
     for (const item of rows) {
-        const row = el('div', { class: 'tip-row' }, tooltip);
-        el('span', { class: 'tip-key', style: `background: ${item.color}` }, row);   // цветная метка
-        el('span', {}, row, numberFormat.format(item.value));
-        el('span', { class: 'tip-label' }, row, item.label);
+        const row = createElement('div', { class: 'tooltip-row' }, tooltip);
+        createElement('span', { class: 'tooltip-key', style: `background: ${item.color}` }, row);   // цветная метка
+        createElement('span', {}, row, numberFormat.format(item.value));
+        createElement('span', { class: 'tooltip-label' }, row, item.label);
     }
     tooltip.hidden = false;
 
@@ -314,20 +314,20 @@ function sectorPath(startAngle, endAngle) {
 /**
  * Кольцевая диаграмма с легендой справа. Рисует внутрь host, заменяя то, что там было.
  *   parts — части кольца, по одной на степень:
- *           [{ label: 'Частичная', short: 'Ч', sub: '21–50%', value: 10, color: '#fbc22c', text: '#0b0b0b' }, …]
- *           label — название (для подсказок), short — буква на секторе, sub — диапазон, value — сколько аварий,
- *           color — цвет сектора, text — цвет буквы на нём
- * Клик по сектору или строке легенды выбирает степень (toggleSeverity).
+ *           [{ name: 'Частичная', letter: 'Ч', rangeLabel: '21–50%', count: 10, color: '#fbc22c', textColor: '#0b0b0b' }, …]
+ *           name — название (для подсказок), letter — буква на секторе, rangeLabel — диапазон, count — сколько аварий,
+ *           color — цвет сектора, textColor — цвет буквы на нём
+ * Клик по сектору или строке легенды выбирает степень (toggleStepen).
  */
 function renderDonut(host, parts) {
     const values = [];
     for (const part of parts) {
-        values.push(part.value);
+        values.push(part.count);
     }
     const total = sum(values);   // всего аварий
 
-    const wrapper = el('div', { class: 'donut' });
-    const svg = svgEl('svg', {
+    const wrapper = createElement('div', { class: 'donut' });
+    const svg = createSvgElement('svg', {
         viewBox: `0 0 ${DONUT_SIZE} ${DONUT_SIZE}`,
         width: DONUT_SIZE,
         height: DONUT_SIZE,
@@ -337,7 +337,7 @@ function renderDonut(host, parts) {
 
     // аварий нет — рисуем пустое серое кольцо
     if (total === 0) {
-        svgEl('circle', {
+        createSvgElement('circle', {
             cx: DONUT_CENTER,
             cy: DONUT_CENTER,
             r: (OUTER_RADIUS + INNER_RADIUS) / 2,          // круг посередине между краями кольца…
@@ -360,13 +360,13 @@ function drawSectors(svg, parts, total) {
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        if (!part.value) {
+        if (!part.count) {
             continue;   // у степени нет аварий — сектора нет
         }
 
         // доля аварий → доля круга (полный круг — 2π радиан)
-        const endAngle = startAngle + (part.value / total) * 2 * Math.PI;
-        const isWholeRing = part.value === total;
+        const endAngle = startAngle + (part.count / total) * 2 * Math.PI;
+        const isWholeRing = part.count === total;
 
         // если все аварии одной степени — сектор на весь круг. Дугу ровно в 360° SVG не рисует
         // (начало совпадает с концом), поэтому рисуем две половины
@@ -374,36 +374,36 @@ function drawSectors(svg, parts, total) {
             ? sectorPath(0, Math.PI) + sectorPath(Math.PI, 2 * Math.PI)
             : sectorPath(startAngle, endAngle);
         const className = isWholeRing ? 'slice full' : 'slice';
-        const slice = svgEl('path', { d: path, fill: part.color, class: className }, svg);
+        const slice = createSvgElement('path', { d: path, fill: part.color, class: className }, svg);
         if (isDimmed(i)) {
-            slice.classList.add('dim');
+            slice.classList.add('dimmed');
         }
 
         // буква степени посередине сектора — чтобы степени различались не только цветом
         if (endAngle - startAngle >= MIN_ANGLE_FOR_LETTER) {
             const middleAngle = (startAngle + endAngle) / 2;
             const middleRadius = (OUTER_RADIUS + INNER_RADIUS) / 2;
-            const letter = svgEl('text', {
-                class: 'slice-num',
+            const letter = createSvgElement('text', {
+                class: 'slice-letter',
                 x: DONUT_CENTER + middleRadius * Math.sin(middleAngle),
                 y: DONUT_CENTER - middleRadius * Math.cos(middleAngle) + 4,   // +4 — опустить на полвысоты буквы
-                fill: part.text,   // чёрная или белая буква — что лучше читается на цвете сектора
+                fill: part.textColor,   // чёрная или белая буква — что лучше читается на цвете сектора
             }, svg);
-            letter.textContent = part.short;
+            letter.textContent = part.letter;
             if (isDimmed(i)) {
-                letter.classList.add('dim');
+                letter.classList.add('dimmed');
             }
         }
 
         // клик — выбрать степень; наведение — подсказка «Частичная · 21–50%: 10 аварий · 34 %»
         slice.addEventListener('click', function () {
-            toggleSeverity(i);
+            toggleStepen(i);
         });
         attachTooltip(slice, function () {
-            const label = `${accidentsWord(part.value)} · ${percentFormat.format(part.value / total)}`;
+            const label = `${accidentsWord(part.count)} · ${percentFormat.format(part.count / total)}`;
             return {
-                title: `${part.label} · ${part.sub}`,
-                rows: [{ value: part.value, label: label, color: part.color }],
+                title: `${part.name} · ${part.rangeLabel}`,
+                rows: [{ value: part.count, label: label, color: part.color }],
             };
         });
 
@@ -416,43 +416,43 @@ function drawSectors(svg, parts, total) {
  * Выбрана степень — сколько аварий этой степени и какая это доля: «10» и «34 %».
  */
 function drawCenter(svg, parts, total) {
-    const selected = state.selected;
-    const value = selected === null ? total : parts[selected].value;
+    const selected = state.selectedStepen;
+    const value = selected === null ? total : parts[selected].count;
     const share = total > 0 ? percentFormat.format(value / total) : '';   // аварий нет вообще — долю не посчитать
     const caption = selected === null ? accidentsWord(total) : share;
 
-    const valueText = svgEl('text', { x: DONUT_CENTER, y: DONUT_CENTER + 4, class: 'donut-value' }, svg);
+    const valueText = createSvgElement('text', { x: DONUT_CENTER, y: DONUT_CENTER + 4, class: 'donut-value' }, svg);
     valueText.textContent = numberFormat.format(value);
-    const captionText = svgEl('text', { x: DONUT_CENTER, y: DONUT_CENTER + 24, class: 'donut-label' }, svg);
+    const captionText = createSvgElement('text', { x: DONUT_CENTER, y: DONUT_CENTER + 24, class: 'donut-label' }, svg);
     captionText.textContent = caption;
 }
 
 /** Легенда справа от кольца: по строке на степень — цвет, диапазон, сколько аварий и какая это доля */
 function drawLegend(wrapper, parts, total) {
-    const legend = el('div', { class: 'donut-legend' }, wrapper);
+    const legend = createElement('div', { class: 'donut-legend' }, wrapper);
 
     for (let i = 0; i < parts.length; i++) {
         const part = parts[i];
-        const share = total > 0 ? percentFormat.format(part.value / total) : '—';   // аварий нет вообще — долю не посчитать
+        const share = total > 0 ? percentFormat.format(part.count / total) : '—';   // аварий нет вообще — долю не посчитать
 
         // название степени в строке не пишем — оно во всплывающей подсказке и для экранного диктора
-        const row = el('button', {
+        const row = createElement('button', {
             type: 'button',
             class: 'legend-row',
-            'aria-pressed': String(state.selected === i),
-            title: part.label,
-            'aria-label': `${part.label}, ${part.sub}: ${numberFormat.format(part.value)}, ${share}`,
+            'aria-pressed': String(state.selectedStepen === i),
+            title: part.name,
+            'aria-label': `${part.name}, ${part.rangeLabel}: ${numberFormat.format(part.count)}, ${share}`,
         }, legend);
         if (isDimmed(i)) {
-            row.classList.add('dim');
+            row.classList.add('dimmed');
         }
-        el('span', { class: 'key', style: `background: ${part.color}` }, row);    // цветной квадратик
-        el('span', { class: 'muted' }, row, part.sub);                           // диапазон «21–50%»
-        el('span', { class: 'legend-value' }, row, numberFormat.format(part.value));
-        el('span', { class: 'muted legend-pct' }, row, share);
+        createElement('span', { class: 'color-key', style: `background: ${part.color}` }, row);    // цветной квадратик
+        createElement('span', { class: 'muted' }, row, part.rangeLabel);                           // диапазон «21–50%»
+        createElement('span', { class: 'legend-value' }, row, numberFormat.format(part.count));
+        createElement('span', { class: 'muted legend-percent' }, row, share);
 
         row.addEventListener('click', function () {
-            toggleSeverity(i);
+            toggleStepen(i);
         });
     }
 }
@@ -464,53 +464,53 @@ function drawLegend(wrapper, parts, total) {
 
 /**
  * Полосы по сервисам: у каждого сервиса полоса из цветных кусков — сколько у него аварий каждой степени.
- *   stats — статистика из buildServiceStats: [{ name: 'Сервис 4', parts: [5, 6, 1, 0] }]
- *   max — самое большое значение среди всех карточек: от него считается длина полос,
+ *   stats — статистика из buildServiceStats: [{ name: 'Сервис 4', stepenCounts: [5, 6, 1, 0] }]
+ *   maxCount — самое большое значение среди всех карточек: от него считается длина полос,
  *         поэтому полосы в разных карточках можно сравнивать
  * Если степень выбрана — на полосах только она. Сервисы без аварий не показываем, остальные — от большего к меньшему.
  */
-function renderServiceBars(host, stats, max) {
+function renderServiceBars(host, stats, maxCount) {
     // сколько аварий показываем у каждого сервиса: все, или только выбранной степени
-    const shown = [];
+    const visibleServices = [];
     for (const item of stats) {
-        const value = state.selected === null ? sum(item.parts) : item.parts[state.selected];
-        if (value > 0) {
-            shown.push({ name: item.name, parts: item.parts, value: value });
+        const shownCount = state.selectedStepen === null ? sum(item.stepenCounts) : item.stepenCounts[state.selectedStepen];
+        if (shownCount > 0) {
+            visibleServices.push({ name: item.name, stepenCounts: item.stepenCounts, shownCount: shownCount });
         }
     }
     // от большего к меньшему; у сервисов с равным значением сохраняется исходный порядок
-    shown.sort(function (a, b) {
-        return b.value - a.value;
+    visibleServices.sort(function (a, b) {
+        return b.shownCount - a.shownCount;
     });
 
-    if (shown.length === 0) {
-        host.replaceChildren(el('p', { class: 'empty' }, null, 'Аварий нет'));
+    if (visibleServices.length === 0) {
+        host.replaceChildren(createElement('p', { class: 'empty' }, null, 'Аварий нет'));
         return;
     }
 
-    const list = el('div', { class: 'bars' });
-    for (const service of shown) {
-        const row = el('div', { class: 'bars-row' }, list);
-        el('div', {}, row, service.name);
-        const line = el('div', { class: 'bar-line' }, row);
+    const list = createElement('div', { class: 'bars' });
+    for (const service of visibleServices) {
+        const row = createElement('div', { class: 'bars-row' }, list);
+        createElement('div', {}, row, service.name);
+        const line = createElement('div', { class: 'bar-line' }, row);
 
         // длина полосы — доля от самого большого значения; 3em оставляем под число справа от полосы
-        const bar = el('div', { class: 'bar', style: `width: calc((100% - 3em) * ${service.value / max})` }, line);
+        const bar = createElement('div', { class: 'bar', style: `width: calc((100% - 3em) * ${service.shownCount / maxCount})` }, line);
 
         // куски полосы: по одному на степень, длина — по количеству аварий
-        for (let i = 0; i < service.parts.length; i++) {
-            const count = service.parts[i];
+        for (let i = 0; i < service.stepenCounts.length; i++) {
+            const count = service.stepenCounts[i];
             if (!count || isDimmed(i)) {
                 continue;   // у степени нет аварий или выбрана другая степень — куска нет
             }
-            const color = PALETTE[i].color;
-            const piece = el('span', { style: `flex-grow: ${count}; background: ${color}` }, bar);
+            const color = STEPEN_COLORS[i].color;
+            const piece = createElement('span', { style: `flex-grow: ${count}; background: ${color}` }, bar);
             attachTooltip(piece, function () {
-                return { title: service.name, rows: [{ value: count, label: DEGREES[i].toLowerCase(), color: color }] };
+                return { title: service.name, rows: [{ value: count, label: STEPEN_NAMES[i].toLowerCase(), color: color }] };
             });
         }
 
-        el('span', { class: 'bar-value' }, line, numberFormat.format(service.value));
+        createElement('span', { class: 'bar-value' }, line, numberFormat.format(service.shownCount));
     }
     host.replaceChildren(list);
 }
@@ -521,7 +521,7 @@ function renderServiceBars(host, stats, max) {
 // ============================================================================
 
 // Самая узкая допустимая колонка диапазона, в пикселях: шире самой длинной подписи («91–100»)
-const VALUE_COL_MIN = 56;
+const MIN_RANGE_COLUMN_WIDTH = 56;
 
 /**
  * Разложить строки по группам с одинаковым ключом, сохраняя порядок, в котором группы встретились.
@@ -543,7 +543,7 @@ function groupBy(rows, getKey) {
  * Таблица одной метрики: строка «Всего», под ней группы операций с подытогом, в каждой группе — её сервисы.
  * Рисует внутрь host, заменяя то, что там было.
  *   metric — метрика, для которой строим таблицу
- *   columns — колонки диапазонов [{ from: 21, to: 30, sev: 1 }], sev — номер степени колонки.
+ *   columns — колонки диапазонов [{ from: 21, to: 30, stepen: 1 }], stepen — номер степени колонки.
  *             Колонки общие для всех метрик, поэтому таблицы разных метрик совпадают столбец в столбец
  *   rows — сервисы; rows[].counts[id метрики] — сколько аварий попало в каждую колонку
  */
@@ -551,42 +551,42 @@ function renderTable(host, metric, columns, rows) {
     // ячейки с числами для одной строки: counts[i] — сколько аварий в колонке i
     function addValueCells(tr, counts) {
         for (let i = 0; i < counts.length; i++) {
-            const cell = el('td', {}, tr, numberFormat.format(counts[i]));
-            paintCell(cell, counts[i], PALETTE[columns[i].sev]);
-            if (isDimmed(columns[i].sev)) {
-                cell.classList.add('dim');
+            const cell = createElement('td', {}, tr, numberFormat.format(counts[i]));
+            paintCell(cell, counts[i], STEPEN_COLORS[columns[i].stepen]);
+            if (isDimmed(columns[i].stepen)) {
+                cell.classList.add('dimmed');
             }
         }
     }
 
-    const table = el('table', { class: 'grid' });
+    const table = createElement('table', { class: 'grid' });
     addColumnGroup(table, columns.length);
     addHeader(table, columns);
 
-    const body = el('tbody', {}, table);
+    const body = createElement('tbody', {}, table);
 
     // строка «Всего» — по всем показанным сервисам
-    const totalRow = el('tr', { class: 'sum' }, body);
-    el('td', { colspan: 3, class: 'name' }, totalRow, 'Всего');
+    const totalRow = createElement('tr', { class: 'sum' }, body);
+    createElement('td', { colspan: 3, class: 'name' }, totalRow, 'Всего');
     addValueCells(totalRow, sumByColumn(rows, metric, columns.length));
 
     for (const groupRows of groupBy(rows, function (row) { return row.category_id; })) {
         // строка группы операций с подытогом по её сервисам
-        const groupRow = el('tr', { class: 'sum' }, body);
-        el('td', { colspan: 3, class: 'name' }, groupRow, groupRows[0].category);
+        const groupRow = createElement('tr', { class: 'sum' }, body);
+        createElement('td', { colspan: 3, class: 'name' }, groupRow, groupRows[0].category);
         addValueCells(groupRow, sumByColumn(groupRows, metric, columns.length));
 
         // сервисы группы. Номер и название операции пишем один раз — в ячейку высотой во все её сервисы (rowspan)
         for (const operationRows of groupBy(groupRows, function (row) { return row.operation_id; })) {
             for (let i = 0; i < operationRows.length; i++) {
                 const row = operationRows[i];
-                const tr = el('tr', {}, body);
+                const tr = createElement('tr', {}, body);
                 if (i === 0) {
-                    el('td', { rowspan: operationRows.length }, tr, String(row.operation_num));
-                    el('td', { rowspan: operationRows.length, class: 'name' }, tr, row.operation);
+                    createElement('td', { rowspan: operationRows.length }, tr, String(row.operation_num));
+                    createElement('td', { rowspan: operationRows.length, class: 'name' }, tr, row.operation);
                 }
-                el('td', { class: 'name' }, tr, row.service);
-                addValueCells(tr, row.counts[metric.id]);
+                createElement('td', { class: 'name' }, tr, row.service);
+                addValueCells(tr, row.columnCounts[metric.id]);
             }
         }
     }
@@ -596,25 +596,25 @@ function renderTable(host, metric, columns, rows) {
 
 /** Описание колонок таблицы: три колонки названий и все колонки диапазонов. Ширину им потом задаст equalizeColumns */
 function addColumnGroup(table, valueColumnCount) {
-    const colgroup = el('colgroup', {}, table);
+    const colgroup = createElement('colgroup', {}, table);
     for (let i = 0; i < 3; i++) {
-        el('col', { class: 'name-col' }, colgroup);       // №, операция, сервис
+        createElement('col', { class: 'name-col' }, colgroup);       // №, операция, сервис
     }
-    el('col', { span: valueColumnCount }, colgroup);       // колонки диапазонов — одним описанием на все
+    createElement('col', { span: valueColumnCount }, colgroup);       // колонки диапазонов — одним описанием на все
 }
 
 /** Строка заголовков: «№ / Операция / Сервис» и подписи диапазонов на цвете своей степени */
 function addHeader(table, columns) {
-    const head = el('tr', {}, el('thead', {}, table));
+    const head = createElement('tr', {}, createElement('thead', {}, table));
     for (const title of ['№', 'Операция', 'Сервис']) {
-        el('th', { class: 'name' }, head, title);
+        createElement('th', { class: 'name' }, head, title);
     }
     for (const column of columns) {
-        const cell = el('th', { class: 'bucket' }, head, columnTitle(column));
-        cell.style.backgroundColor = PALETTE[column.sev].color;
-        cell.style.color = PALETTE[column.sev].text;
-        if (isDimmed(column.sev)) {
-            cell.classList.add('dim');
+        const cell = createElement('th', { class: 'range-column' }, head, columnTitle(column));
+        cell.style.backgroundColor = STEPEN_COLORS[column.stepen].color;
+        cell.style.color = STEPEN_COLORS[column.stepen].textColor;
+        if (isDimmed(column.stepen)) {
+            cell.classList.add('dimmed');
         }
     }
 }
@@ -630,7 +630,7 @@ function sumByColumn(rows, metric, columnCount) {
     for (let i = 0; i < columnCount; i++) {
         let total = 0;
         for (const row of rows) {
-            total = total + row.counts[metric.id][i];
+            total = total + row.columnCounts[metric.id][i];
         }
         totals.push(total);
     }
@@ -638,15 +638,15 @@ function sumByColumn(rows, metric, columnCount) {
 }
 
 /**
- * Покрасить ячейку цветом степени её колонки (colors — набор цветов степени из PALETTE):
+ * Покрасить ячейку цветом степени её колонки (colors — набор цветов степени из STEPEN_COLORS):
  * есть аварии — чуть высветленный цвет и жирное тёмное число, нет — бледный оттенок и серый ноль.
  */
 function paintCell(cell, count, colors) {
     if (count) {
-        cell.style.backgroundColor = colors.cell;
-        cell.classList.add('nz');   // nz = non-zero; в CSS такие числа жирные и тёмные
+        cell.style.backgroundColor = colors.cellBackground;
+        cell.classList.add('has-accidents');   // nz = non-zero; в CSS такие числа жирные и тёмные
     } else {
-        cell.style.backgroundColor = colors.empty;
+        cell.style.backgroundColor = colors.emptyCellBackground;
         cell.style.color = 'var(--text-2)';
     }
 }
@@ -658,7 +658,7 @@ function paintCell(cell, count, colors) {
  *   1. берём ширину колонок №, операции и сервиса такой, какой её только что посчитал браузер (по содержимому);
  *   2. закрепляем её;
  *   3. переключаем таблицу на фиксированную раскладку — там остаток ширины делится между колонками поровну.
- * Если места меньше, чем VALUE_COL_MIN на колонку, таблица не сжимается, а прокручивается.
+ * Если места меньше, чем MIN_RANGE_COLUMN_WIDTH на колонку, таблица не сжимается, а прокручивается.
  * Вызывать, когда таблица уже на странице — иначе мерить нечего.
  */
 function equalizeColumns(table) {
@@ -674,12 +674,12 @@ function equalizeColumns(table) {
         nameColumns[i].style.width = `${nameWidths[i]}px`;
     }
 
-    // таблица не уже, чем названия + колонки диапазонов по VALUE_COL_MIN + промежутки между ячейками
+    // таблица не уже, чем названия + колонки диапазонов по MIN_RANGE_COLUMN_WIDTH + промежутки между ячейками
     // (промежутков на один больше, чем колонок: колонок диапазонов valueCount и ещё 3 колонки названий)
-    const valueCount = table.querySelectorAll('thead th.bucket').length;
+    const valueCount = table.querySelectorAll('thead th.range-column').length;
     const cssSpacing = parseFloat(getComputedStyle(table).borderSpacing);   // промежуток между ячейками из CSS
     const spacing = Number.isNaN(cssSpacing) ? 0 : cssSpacing;
-    table.style.minWidth = `${sum(nameWidths) + valueCount * VALUE_COL_MIN + (valueCount + 4) * spacing}px`;
+    table.style.minWidth = `${sum(nameWidths) + valueCount * MIN_RANGE_COLUMN_WIDTH + (valueCount + 4) * spacing}px`;
 
     // 3. фиксированная раскладка
     table.style.tableLayout = 'fixed';

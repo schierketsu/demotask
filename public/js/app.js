@@ -12,28 +12,28 @@
 // Как это работает:
 //   app.js загружает JSON → кладёт его в state → создаёт панель настройки (controls.js) → вызывает render() (view.js)
 //   render() берёт расчёты из calc.js и рисует страницу
-//   пользователь двигает границу → controls.js меняет state → apply() → render() → страница обновилась
+//   пользователь двигает границу → controls.js меняет state → refreshPage() → render() → страница обновилась
 //
 // Кто кого подключает (стрелки только вниз, по кругу никто никого не импортирует):
 //   app.js      → state.js, controls.js, view.js
-//   controls.js → state.js, config.js, calc.js, view.js (только помощники el и byId)
+//   controls.js → state.js, config.js, calc.js, view.js (только помощники createElement и byId)
 //   view.js     → state.js, config.js, calc.js
 //   calc.js     → state.js, config.js
 //   state.js    → config.js
 
 import { state } from './state.js';
 import { buildControls, updateControls } from './controls.js';
-import { byId, el, render } from './view.js';
+import { byId, createElement, render } from './view.js';
 
 
 /** Границы изменились: обновить панель и перерисовать страницу */
-function apply() {
+function refreshPage() {
     updateControls();
     render();
 }
 
 /** «Деградация (без учета 5 минут)» → «Без учета 5 минут»: берём текст в скобках и делаем первую букву заглавной */
-function shortName(name) {
+function shortMetricName(name) {
     const open = name.indexOf('(');
     const close = name.indexOf(')', open + 1);
     const hasBrackets = open !== -1 && close > open + 1;
@@ -82,22 +82,22 @@ async function init() {
     // короткие названия метрик для заголовков карточек — добавляем прямо к метрикам с сервера:
     // { id: 1, name: 'Деградация (без учета 5 минут)' } → + label: 'Без учета 5 минут'
     for (const metric of state.data.metrics) {
-        metric.label = shortName(metric.name);
+        metric.label = shortMetricName(metric.name);
     }
 
     // выпадающий список «Группа операций»: по пункту на каждую категорию
-    const categorySelect = byId('opcat');
+    const groupSelect = byId('group-filter');
     for (const category of state.data.categories) {
-        el('option', { value: category.id }, categorySelect, category.name);
+        createElement('option', { value: category.id }, groupSelect, category.name);
     }
-    categorySelect.addEventListener('change', function () {
-        state.opcat = categorySelect.value;
+    groupSelect.addEventListener('change', function () {
+        state.selectedGroupId = groupSelect.value;
         render(); //это только регистрация обработчика, если юзер меняет категорию то функция выполнится позже
     });
 
     // панели настройки передаём, что делать после каждого изменения границ
-    buildControls(apply); //при измененнии настроек будет вызывать apply() и перерисовывать страницу (колбэк)
-    apply(); //явно вызываем apply() чтобы отрисовать страницу при первой загрузке
+    buildControls(refreshPage); //при измененнии настроек будет вызывать refreshPage() и перерисовывать страницу (колбэк)
+    refreshPage(); //явно вызываем refreshPage() чтобы отрисовать страницу при первой загрузке
 }
 
 
