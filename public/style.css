@@ -221,7 +221,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .grid th, .grid td { padding: 4px; text-align: center; white-space: nowrap; border-radius: 4px; transition: opacity .15s; }
 .grid .name { text-align: left; padding: 4px 6px; }
 /* колонки №, операции и сервиса — по содержимому (1% — «как можно уже»); равную ширину колонкам диапазонов
-   задаёт equalizeColumns в charts.js */
+   задаёт equalizeColumns в view.js */
 .grid th.name { width: 1%; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
 /* жирные: строки «Всего» и групп целиком, в остальных — ненулевые числа */

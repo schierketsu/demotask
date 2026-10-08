@@ -1,14 +1,23 @@
 // calc.js — расчёты: степень для процента, диапазоны степеней, колонки таблицы и подготовка данных
-// для колец, полос и таблиц. Страницу здесь не трогаем — только считаем.
+// для колец, полос и таблиц. Страницу здесь не трогаем — только считаем; рисует view.js.
 //
 // Что здесь, по порядку:
 //   1. Степени: какая степень у процента, диапазоны и подписи степеней, подсчёт аварий по степеням.
-//   2. Сервисы: фильтр по группе операций, полосы по сервисам и их общий масштаб.
+//   2. Сервисы: фильтр по группе операций, статистика по сервисам для полос и их общий масштаб.
 //   3. Таблица: колонки (диапазоны, разрезанные границами степеней), склейка пустых колонок, подсчёт по колонкам.
 
 import { DEGREES, PALETTE } from './config.js';
 import { state } from './state.js';
-import { sum } from './charts.js';
+
+
+/** Сумма чисел списка: sum([1, 2, 3]) → 6 */
+export function sum(numbers) {
+    let total = 0;
+    for (const number of numbers) {
+        total = total + number;
+    }
+    return total;
+}
 
 
 // ============================================================================
@@ -27,10 +36,11 @@ export function severityOf(pct) {
 }
 
 /**
- * Описание четырёх степеней для подписей: название, первая буква, диапазон процентов, цвет и цвет текста на нём.
+ * Диапазоны четырёх степеней при текущих границах — для подписей: название, первая буква,
+ * диапазон процентов, цвет и цвет текста на нём.
  * Например: { name: 'Частичная', short: 'Ч', from: 21, to: 50, color: '#fbc22c', text: '#0b0b0b' }
  */
-export function severities() {
+export function getSeverityRanges() {
     const bounds = state.settings.bounds;
     const result = [];
 
@@ -68,7 +78,7 @@ function countBySeverity(pcts) {
 
 
 // ============================================================================
-// 2. Сервисы: фильтр и полосы
+// 2. Сервисы: фильтр и статистика для полос
 // ============================================================================
 
 /** Строки сервисов с учётом фильтра «Группа операций» */
@@ -87,13 +97,17 @@ export function filteredRows() {
     return result;
 }
 
-/** Для одной метрики: [{ name: 'Сервис 1', parts: [кол-во аварий по степеням] }, …] */
-export function serviceBars(rows, metric) {
-    const items = [];
+/**
+ * Статистика сервисов для одной метрики — сколько у каждого сервиса аварий каждой степени.
+ * Только считает; полосы по ней потом рисует view.js.
+ * Например: [{ name: 'Сервис 1', parts: [2, 1, 0, 0] }, …]
+ */
+export function buildServiceStats(rows, metric) {
+    const stats = [];
     for (const row of rows) {
-        items.push({ name: row.service, parts: countBySeverity(row.pcts[metric.id]) });
+        stats.push({ name: row.service, parts: countBySeverity(row.pcts[metric.id]) });
     }
-    return items;
+    return stats;
 }
 
 /** Сколько аварий показывать на полосе сервиса: все, или только выбранной степени */
@@ -101,11 +115,11 @@ function shownValue(parts) {
     return state.selected === null ? sum(parts) : parts[state.selected];
 }
 
-/** Самое большое показываемое значение среди всех полос всех метрик (не меньше 1) */
-export function maxShownValue(barsByMetric) {
+/** Самое большое показываемое значение среди всех сервисов всех метрик (не меньше 1) — общий масштаб полос */
+export function maxShownValue(statsByMetric) {
     let max = 1;
-    for (const items of barsByMetric) {
-        for (const item of items) {
+    for (const stats of statsByMetric) {
+        for (const item of stats) {
             const value = shownValue(item.parts);
             if (value > max) {
                 max = value;
@@ -192,7 +206,7 @@ export function mergeEmptyColumns(columns, pcts) {
 export function allPcts(rows) {
     const result = [];
     for (const row of rows) {
-        for (const metric of state.metrics) {
+        for (const metric of state.data.metrics) {
             for (const pct of row.pcts[metric.id]) {
                 result.push(pct);
             }
@@ -209,7 +223,7 @@ export function tableRowsWithCounts(rows, columns) {
     const result = [];
     for (const row of rows) {
         const counts = {};
-        for (const metric of state.metrics) {
+        for (const metric of state.data.metrics) {
             const pcts = row.pcts[metric.id];
             const countsInColumns = [];
             for (const column of columns) {

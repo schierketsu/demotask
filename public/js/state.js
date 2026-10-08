@@ -6,10 +6,12 @@ import { defaultSettings } from './config.js';
 
 
 export const state = {
-    data: null,                    // данные с сервера (ответ /api/data)
-    metrics: [],                   // метрики с короткими названиями: [{ id, label }]
+    data: null,                    // данные с сервера (ответ /api/data): metrics, buckets, categories, rows
     opcat: '',                     // выбранная группа операций; '' — все группы
     selected: null,                // выбранная степень: 0..3, или null — «все»
     settings: defaultSettings(),   // границы степеней; при открытии страницы — всегда по умолчанию
     controls: null,                // элементы панели настройки — чтобы потом их обновлять
 };
+
+//конст - заменить обьект другим обьектом 
+//нельзя, но чендж полей доступен

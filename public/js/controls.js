@@ -1,14 +1,54 @@
 // controls.js — панель настройки степеней: ползунки, цветная шкала с подписями, облачка со значениями,
-// деления под шкалой и плашки с цветом степени и полем границы.
+// деления под шкалой и плашки с цветом степени и полем границы; здесь же сдвиг границ (setBound).
 //
 // Элементы создаются один раз (buildControls), а потом только обновляются (updateControls).
-// Что делать после того, как пользователь что-то поменял, решает app.js — он передаёт функцию onChange.
+// Что делать после того, как пользователь что-то поменял, решает app.js — он передаёт функцию onChange:
+//   ползунок изменился → setBound() → state.settings.bounds изменились → onChange() → страница перерисована
 
 import { DEGREES, LABEL_GAP, PALETTE, STEP, defaultSettings } from './config.js';
 import { state } from './state.js';
-import { setBound } from './settings.js';
-import { rangeText, severities } from './calc.js';
-import { byId, el } from './charts.js';
+import { getSeverityRanges, rangeText } from './calc.js';
+import { byId, el } from './view.js';
+
+
+/**
+ * Поставить границу номер i (0, 1 или 2) в значение value — меняет state.settings.bounds.
+ * Соседние границы при необходимости сдвигаются, чтобы у каждой степени остался хотя бы один процент.
+ */
+function setBound(i, value) {
+    const bounds = state.settings.bounds;
+
+    // 1. Округляем до шага
+    let newBound = Math.round(value / STEP) * STEP;
+
+    // 2. Не пускаем границу слишком близко к краям шкалы:
+    //    слева от неё должны поместиться i + 1 степеней, справа — 3 - i степеней, по шагу на каждую
+    const lowest = STEP * (i + 1);
+    const highest = 100 - STEP * (3 - i);
+    if (newBound < lowest) {
+        newBound = lowest;
+    }
+    if (newBound > highest) {
+        newBound = highest;
+    }
+    bounds[i] = newBound;
+
+    // 3. Каждая граница правее должна быть хотя бы на шаг больше предыдущей — иначе двигаем её вправо
+    for (let j = i + 1; j < 3; j++) {
+        const minimum = bounds[j - 1] + STEP;
+        if (bounds[j] < minimum) {
+            bounds[j] = minimum;
+        }
+    }
+
+    // 4. Каждая граница левее должна быть хотя бы на шаг меньше следующей — иначе двигаем её влево
+    for (let j = i - 1; j >= 0; j--) {
+        const maximum = bounds[j + 1] - STEP;
+        if (bounds[j] > maximum) {
+            bounds[j] = maximum;
+        }
+    }
+}
 
 
 /**
@@ -61,7 +101,7 @@ function createSlider(i, onChange) {
 
     // двигают ползунок — ставим новую границу и перерисовываем страницу
     slider.addEventListener('input', function () {
-        setBound(state.settings.bounds, i, Number(slider.value));
+        setBound(i, Number(slider.value));
         onChange();
     });
     return slider;
@@ -113,7 +153,7 @@ function createTile(i, onChange) {
                 updateControls();
                 return;
             }
-            setBound(state.settings.bounds, i, Number(num.value));
+            setBound(i, Number(num.value));
             onChange();
         });
     } else {
@@ -128,7 +168,7 @@ function createTile(i, onChange) {
 /** Привести панель настройки в соответствие с текущими границами */
 export function updateControls() {
     const bounds = state.settings.bounds;
-    const sevs = severities();
+    const ranges = getSeverityRanges();
     const controls = state.controls;
 
     // ползунки
@@ -165,7 +205,7 @@ export function updateControls() {
     // плашки: диапазон текстом и число в поле границы
     for (let i = 0; i < 4; i++) {
         const tile = controls.tiles[i];
-        tile.range.textContent = rangeText(sevs[i]);
+        tile.range.textContent = rangeText(ranges[i]);
         if (tile.num !== null) {
             tile.num.value = bounds[i];
         }

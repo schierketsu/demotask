@@ -4,25 +4,26 @@
 // Из чего состоит страница (все файлы — в public/js/):
 //   config.js   — постоянные значения: названия и цвета степеней, шаг, границы по умолчанию
 //   state.js    — состояние страницы: всё, что страница «помнит»
-//   settings.js — сдвиг границ между степенями
-//   calc.js     — расчёты: степени, колонки таблицы, подготовка данных для колец, полос и таблиц
-//   controls.js — панель настройки: ползунки, шкала, плашки с цветом и числом
-//   view.js     — отрисовка: чипы степеней и карточки метрик
-//   charts.js   — рисование: кольцо, полосы, таблица, подсказки и общие помощники
+//   calc.js     — расчёты: степени, статистика сервисов, колонки и подсчёты для таблиц
+//   controls.js — панель настройки: ползунки, шкала, плашки с цветом и числом, сдвиг границ
+//   view.js     — всё отображение: чипы, карточки метрик, кольцо, полосы, таблица
 //   app.js      — запуск (этот файл)
 //
+// Как это работает:
+//   app.js загружает JSON → кладёт его в state → создаёт панель настройки (controls.js) → вызывает render() (view.js)
+//   render() берёт расчёты из calc.js и рисует страницу
+//   пользователь двигает границу → controls.js меняет state → apply() → render() → страница обновилась
+//
 // Кто кого подключает (стрелки только вниз, по кругу никто никого не импортирует):
-//   app.js      → controls.js, view.js, state.js, charts.js
-//   controls.js → state.js, settings.js, calc.js, config.js, charts.js
-//   view.js     → state.js, calc.js, config.js, charts.js
-//   calc.js     → state.js, config.js, charts.js
+//   app.js      → state.js, controls.js, view.js
+//   controls.js → state.js, config.js, calc.js, view.js (только помощники el и byId)
+//   view.js     → state.js, config.js, calc.js
+//   calc.js     → state.js, config.js
 //   state.js    → config.js
-//   settings.js → config.js
 
 import { state } from './state.js';
 import { buildControls, updateControls } from './controls.js';
-import { render } from './view.js';
-import { byId, el } from './charts.js';
+import { byId, el, render } from './view.js';
 
 
 /** Границы изменились: обновить панель и перерисовать страницу */
@@ -78,9 +79,10 @@ async function init() {
         return;
     }
 
-    // короткие названия метрик для заголовков карточек
+    // короткие названия метрик для заголовков карточек — добавляем прямо к метрикам с сервера:
+    // { id: 1, name: 'Деградация (без учета 5 минут)' } → + label: 'Без учета 5 минут'
     for (const metric of state.data.metrics) {
-        state.metrics.push({ id: metric.id, label: shortName(metric.name) });
+        metric.label = shortName(metric.name);
     }
 
     // выпадающий список «Группа операций»: по пункту на каждую категорию
@@ -93,8 +95,8 @@ async function init() {
         render(); //это только регистрация обработчика, если юзер меняет категорию то функция выполнится позже
     });
 
-    // панели настройки передаём, что делать после каждого изменения границ или цветов
-    buildControls(apply); //при измененнии настроек будет вызывать apply() и перерисовывать страницу
+    // панели настройки передаём, что делать после каждого изменения границ
+    buildControls(apply); //при измененнии настроек будет вызывать apply() и перерисовывать страницу (колбэк)
     apply(); //явно вызываем apply() чтобы отрисовать страницу при первой загрузке
 }
 

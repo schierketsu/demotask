@@ -39,6 +39,6 @@ docker/php/Dockerfile        php-fpm с pdo_pgsql
 docker/nginx/default.conf    статика из public/, /api/* -> src/api.php
 src/api.php                  JSON API: GET /api/data — все данные одним ответом
 public/                      index.html, style.css
-public/js/                   app.js — точка входа; config, state, settings, calc, controls, view, charts — модули страницы
+public/js/                   app.js — точка входа; config, state, calc, controls, view — модули страницы
                              (что в каком файле и кто кого подключает — в начале app.js)
 ```
