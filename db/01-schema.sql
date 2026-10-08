@@ -14,16 +14,17 @@ CREATE TABLE bucket (
     pct_to   int  NOT NULL
 );
 
-CREATE TABLE category (
+-- Продукт: в нём операции, в операциях — сервисы
+CREATE TABLE product (
     id   int PRIMARY KEY,
     name text NOT NULL
 );
 
 CREATE TABLE operation (
-    id          int PRIMARY KEY,
-    category_id int  NOT NULL REFERENCES category (id),
-    num         int  NOT NULL,  -- столбец «№»
-    name        text NOT NULL
+    id         int PRIMARY KEY,
+    product_id int  NOT NULL REFERENCES product (id),
+    num        int  NOT NULL,  -- столбец «№»
+    name       text NOT NULL
 );
 
 CREATE TABLE service (

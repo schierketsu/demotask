@@ -16,12 +16,12 @@ INSERT INTO bucket (id, label, pct_from, pct_to) VALUES
     (9, '81-90%', 81, 90),
     (10, '91-100%', 91, 100);
 
-INSERT INTO category (id, name) VALUES
-    (1, 'Категория 1'),
-    (2, 'Категория 2'),
-    (3, 'Категория 3');
+INSERT INTO product (id, name) VALUES
+    (1, 'Продукт 1'),
+    (2, 'Продукт 2'),
+    (3, 'Продукт 3');
 
-INSERT INTO operation (id, category_id, num, name) VALUES
+INSERT INTO operation (id, product_id, num, name) VALUES
     (1, 1, 1, 'Операция 1'),
     (2, 2, 2, 'Операция 2'),
     (3, 3, 3, 'Операция 3'),

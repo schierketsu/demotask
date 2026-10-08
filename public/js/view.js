@@ -16,7 +16,7 @@
 import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 import {
-    allPercents, buildServiceStats, rowsInSelectedGroup, getStepenRanges, maxShownCount, mergeEmptyColumns, formatRange, sum,
+    allPercents, buildServiceStats, rowsOfSelectedProduct, getStepenRanges, maxShownCount, mergeEmptyColumns, formatRange, sum,
     buildTableColumns, buildTableRows,
 } from './calc.js';
 
@@ -100,7 +100,7 @@ function isDimmed(index) {
 /** Перерисовать всё, что зависит от данных и настроек: чипы и карточки метрик */
 export function render() {
     const ranges = getStepenRanges();
-    const rows = rowsInSelectedGroup();
+    const rows = rowsOfSelectedProduct();
     const metrics = state.data.metrics;
 
     renderChips(ranges);
@@ -119,16 +119,17 @@ export function render() {
     const columns = mergeEmptyColumns(buildTableColumns(), allPercents(rows));
     const tableRows = buildTableRows(rows, columns);
 
-    // по карточке на метрику
+    // по раскрывающемуся блоку на метрику: надпись и под ней карточка
     const container = byId('metric-rows');
-    container.replaceChildren();   // убираем старые карточки
+    container.replaceChildren();   // убираем старые блоки
     for (let i = 0; i < metrics.length; i++) {
         const card = buildMetricCard(metrics[i], statsByMetric[i], ranges, maxCount, columns, tableRows);
-        container.append(card);
+        container.append(buildMetricBlock(metrics[i], card));
     }
 
-    // таблицы уже на странице — выравниваем колонки диапазонов по ширине
-    const tables = document.querySelectorAll('#metric-rows table.grid');
+    // таблицы раскрытых карточек уже на странице — выравниваем колонки диапазонов по ширине.
+    // У скрытых карточек мерить нечего: их таблицы выравниваются в момент раскрытия (buildMetricBlock)
+    const tables = document.querySelectorAll('#metric-rows details[open] table.grid');
     for (const table of tables) {
         equalizeColumns(table);
     }
@@ -184,8 +185,8 @@ function buildMetricCard(metric, stats, ranges, maxCount, columns, tableRows) {
     const card = createElement('section', { class: 'card metric-card' });
 
     // ---------- слева: сводка ----------
+    // название метрики не здесь, а в надписи над карточкой (buildMetricBlock)
     const summary = createElement('div', { class: 'metric-summary' }, card);
-    createElement('h2', {}, summary, metric.label);
 
     // кольцо: сколько всего аварий каждой степени
     const donutParts = [];
@@ -218,6 +219,28 @@ function buildMetricCard(metric, stats, ranges, maxCount, columns, tableRows) {
     renderTable(createElement('div', { class: 'table-wrap' }, detail), metric, columns, tableRows);
 
     return card;
+}
+
+/**
+ * Раскрывающийся блок метрики: надпись («Без учета 5 минут») и под ней карточка.
+ * Сделан на стандартных <details>/<summary>: браузер сам раскрывает и скрывает карточку по нажатию
+ * на надпись (и с клавиатуры). Какие блоки раскрыты, запоминаем в state.openMetrics —
+ * иначе после каждой перерисовки (например, при движении ползунка) блоки снова скрывались бы.
+ */
+function buildMetricBlock(metric, card) {
+    const block = createElement('details', { class: 'metric-block' });
+    block.open = state.openMetrics[metric.id] === true;
+    createElement('summary', {}, block, metric.label);
+    block.append(card);
+
+    block.addEventListener('toggle', function () {
+        state.openMetrics[metric.id] = block.open;
+        // скрытую таблицу измерить нельзя — выравниваем колонки, когда карточку раскрыли
+        if (block.open) {
+            equalizeColumns(block.querySelector('table.grid'));
+        }
+    });
+    return block;
 }
 
 
@@ -525,7 +548,7 @@ const MIN_RANGE_COLUMN_WIDTH = 56;
 
 /**
  * Разложить строки по группам с одинаковым ключом, сохраняя порядок, в котором группы встретились.
- * Например, groupBy(rows, row => row.category_id) → [[сервисы группы 1], [сервисы группы 3], …]
+ * Например, groupBy(rows, row => row.product_id) → [[сервисы продукта 1], [сервисы продукта 3], …]
  */
 function groupBy(rows, getKey) {
     const groups = new Map();   // ключ → список строк; Map помнит порядок, в котором ключи появились
@@ -540,7 +563,7 @@ function groupBy(rows, getKey) {
 }
 
 /**
- * Таблица одной метрики: строка «Всего», под ней группы операций с подытогом, в каждой группе — её сервисы.
+ * Таблица одной метрики: строка «Всего», под ней продукты с подытогом, в каждом продукте — его операции и сервисы.
  * Рисует внутрь host, заменяя то, что там было.
  *   metric — метрика, для которой строим таблицу
  *   columns — колонки диапазонов [{ from: 21, to: 30, stepen: 1 }], stepen — номер степени колонки.
@@ -570,14 +593,14 @@ function renderTable(host, metric, columns, rows) {
     createElement('td', { colspan: 3, class: 'name' }, totalRow, 'Всего');
     addValueCells(totalRow, sumByColumn(rows, metric, columns.length));
 
-    for (const groupRows of groupBy(rows, function (row) { return row.category_id; })) {
-        // строка группы операций с подытогом по её сервисам
-        const groupRow = createElement('tr', { class: 'sum' }, body);
-        createElement('td', { colspan: 3, class: 'name' }, groupRow, groupRows[0].category);
-        addValueCells(groupRow, sumByColumn(groupRows, metric, columns.length));
+    for (const productRows of groupBy(rows, function (row) { return row.product_id; })) {
+        // строка продукта с подытогом по его сервисам
+        const productRow = createElement('tr', { class: 'sum' }, body);
+        createElement('td', { colspan: 3, class: 'name' }, productRow, productRows[0].product);
+        addValueCells(productRow, sumByColumn(productRows, metric, columns.length));
 
         // сервисы группы. Номер и название операции пишем один раз — в ячейку высотой во все её сервисы (rowspan)
-        for (const operationRows of groupBy(groupRows, function (row) { return row.operation_id; })) {
+        for (const operationRows of groupBy(productRows, function (row) { return row.operation_id; })) {
             for (let i = 0; i < operationRows.length; i++) {
                 const row = operationRows[i];
                 const tr = createElement('tr', {}, body);
@@ -644,7 +667,7 @@ function sumByColumn(rows, metric, columnCount) {
 function paintCell(cell, count, colors) {
     if (count) {
         cell.style.backgroundColor = colors.cellBackground;
-        cell.classList.add('has-accidents');   // nz = non-zero; в CSS такие числа жирные и тёмные
+        cell.classList.add('has-accidents');  
     } else {
         cell.style.backgroundColor = colors.emptyCellBackground;
         cell.style.color = 'var(--text-2)';

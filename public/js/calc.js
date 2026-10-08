@@ -3,14 +3,14 @@
 //
 // Что здесь, по порядку:
 //   1. Степени: какая степень у процента, диапазоны и подписи степеней, подсчёт аварий по степеням.
-//   2. Сервисы: фильтр по группе операций, статистика по сервисам для полос и их общий масштаб.
+//   2. Сервисы: фильтр по продукту, статистика по сервисам для полос и их общий масштаб.
 //   3. Таблица: колонки (диапазоны, разрезанные границами степеней), склейка пустых колонок, подсчёт по колонкам.
 
 import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 
 
-/** Сумма чисел списка: sum([1, 2, 3]) → 6 */
+//функция суммы
 export function sum(numbers) {
     let total = 0;
     for (const number of numbers) {
@@ -61,7 +61,7 @@ export function getStepenRanges() {
     return result;
 }
 
-/** Подпись диапазона степени: «21–50%» */
+/** форматер { from: 21, to: 50 } → «21–50%» */
 export function formatRange(stepen) {
     return `${stepen.from}–${stepen.to}%`;
 }
@@ -81,16 +81,16 @@ function countByStepen(percents) {
 // 2. Сервисы: фильтр и статистика для полос
 // ============================================================================
 
-/** Строки сервисов с учётом фильтра «Группа операций» */
-export function rowsInSelectedGroup() {
+/** Строки сервисов с учётом фильтра «Продукт» */
+export function rowsOfSelectedProduct() {
     const allRows = state.data.rows;
-    if (state.selectedGroupId === '') {
-        return allRows;   // группа не выбрана — показываем все
+    if (state.selectedProductId === '') {
+        return allRows;   // продукт не выбран — показываем все
     }
     const result = [];
     for (const row of allRows) {
-        // в выпадающем списке значение хранится текстом, а category_id — число, поэтому сравниваем как текст
-        if (String(row.category_id) === state.selectedGroupId) {
+        // в выпадающем списке значение хранится текстом, а product_id — число, поэтому сравниваем как текст
+        if (String(row.product_id) === state.selectedProductId) {
             result.push(row);
         }
     }
@@ -233,8 +233,8 @@ export function buildTableRows(rows, columns) {
         }
 
         result.push({
-            category_id: row.category_id,
-            category: row.category,
+            product_id: row.product_id,
+            product: row.product,
             operation_id: row.operation_id,
             operation_num: row.operation_num,
             operation: row.operation,

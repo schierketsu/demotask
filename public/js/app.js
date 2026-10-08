@@ -34,7 +34,7 @@ function refreshPage() {
 
 /** «Деградация (без учета 5 минут)» → «Без учета 5 минут»: берём текст в скобках и делаем первую букву заглавной */
 function shortMetricName(name) {
-    const open = name.indexOf('(');
+    const open = name.indexOf('('); //узнать индекс символа
     const close = name.indexOf(')', open + 1);
     const hasBrackets = open !== -1 && close > open + 1;
     const inner = hasBrackets ? name.slice(open + 1, close) : name;   // если скобок нет — берём название целиком
@@ -85,14 +85,14 @@ async function init() {
         metric.label = shortMetricName(metric.name);
     }
 
-    // выпадающий список «Группа операций»: по пункту на каждую категорию
-    const groupSelect = byId('group-filter');
-    for (const category of state.data.categories) {
-        createElement('option', { value: category.id }, groupSelect, category.name);
+    // выпадающий список «Продукт»: по пункту на каждый продукт
+    const productSelect = byId('product-filter');
+    for (const product of state.data.products) {
+        createElement('option', { value: product.id }, productSelect, product.name);
     }
-    groupSelect.addEventListener('change', function () {
-        state.selectedGroupId = groupSelect.value;
-        render(); //это только регистрация обработчика, если юзер меняет категорию то функция выполнится позже
+    productSelect.addEventListener('change', function () {
+        state.selectedProductId = productSelect.value;
+        render(); //это только регистрация обработчика, если юзер меняет продукт то функция выполнится позже
     });
 
     // панели настройки передаём, что делать после каждого изменения границ

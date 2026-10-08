@@ -55,7 +55,7 @@ button { cursor: pointer; }
     border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none;
 }
 
-/* верхняя строка: группа операций и степени деградации — в одну строку (переносится только на узком экране) */
+/* верхняя строка: продукт и степени деградации — в одну строку (переносится только на узком экране) */
 .filters { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 0 0 16px; }
 /* своя стрелка вместо системной, чтобы список выглядел как чип */
 select {
@@ -182,7 +182,25 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .metric-detail { min-width: 0; padding: 20px; }
 /* «Сервисы» отделены от кольца линией */
 .metric-summary h3 { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
-.detail-title { line-height: 21px; }  /* по высоте — как заголовок сводки слева */
+.detail-title { line-height: 21px; }  /* подпись «Детализация» над таблицей */
+
+/* --- раскрывающийся блок метрики: надпись-кнопка («Без учета 5 минут»), под ней карточка --- */
+.metric-block > summary {
+    display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+    border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+    font-weight: 700; cursor: pointer; list-style: none; user-select: none;
+}
+.metric-block > summary::-webkit-details-marker { display: none; }   /* убираем стандартный треугольник */
+/* своя стрелка: вправо — карточка скрыта, вниз — раскрыта */
+.metric-block > summary::before {
+    content: ""; width: 7px; height: 7px; flex: none;
+    border-right: 2px solid currentColor; border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg); transition: transform .15s;
+}
+.metric-block[open] > summary::before { transform: rotate(45deg); }
+.metric-block > summary:hover { border-color: var(--text-2); }
+.metric-block > summary:focus-visible { outline: none; border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+.metric-block > .metric-card { margin-top: 8px; }
 @media (max-width: 1250px) {
     .metric-card { grid-template-columns: minmax(0, 1fr); }
     .metric-summary { border-right: 0; border-bottom: 1px solid var(--line); }
@@ -224,7 +242,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
    задаёт equalizeColumns в view.js */
 .grid th.name { width: 1%; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
-/* жирные: строки «Всего» и групп целиком, в остальных — ненулевые числа */
+/* жирные: строки «Всего» и продуктов целиком, в остальных — ненулевые числа */
 .grid tr.sum td, .grid td.has-accidents { font-weight: 700; }
 .grid td.has-accidents { color: var(--text); }   /* на высветленных цветах степеней тёмное число читается лучше всего */
 .grid th.range-column { font-weight: 400; min-width: 36px; }

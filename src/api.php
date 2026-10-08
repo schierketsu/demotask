@@ -5,7 +5,7 @@ declare(strict_types=1); //строгий режим (без приведени�
 /*
  * JSON API дашборда. nginx направляет сюда все запросы /api/*.
  *
- *   GET /api/data  метрики, диапазоны, группы операций и проценты деградации случаев по сервисам
+ *   GET /api/data  метрики, диапазоны, продукты и проценты деградации случаев по сервисам
  */
 
 function db(): PDO //на вовзрате ожидается обьект PDO
@@ -41,15 +41,15 @@ function respond(int $status, array $body): never
 
 function data(PDO $pdo): array
 {
-    // 1. Справочники: метрики, диапазоны и категории — просто списки из таблиц
+    // 1. Справочники: метрики, диапазоны и продукты — просто списки из таблиц
     $metrics = query($pdo, 'SELECT id, name FROM metric ORDER BY id');
     $buckets = query($pdo, 'SELECT id, label, pct_from, pct_to FROM bucket ORDER BY id');
-    $categories = query($pdo, 'SELECT id, name FROM category ORDER BY id');
+    $products = query($pdo, 'SELECT id, name FROM product ORDER BY id');
 
-    //таблица категория-операция-сервис
+    //таблица продукт-операция-сервис
     $services = query($pdo, "
-        SELECT category.id    AS category_id,
-               category.name  AS category,
+        SELECT product.id     AS product_id,
+               product.name   AS product,
                operation.id   AS operation_id,
                operation.num  AS operation_num,
                operation.name AS operation,
@@ -57,8 +57,8 @@ function data(PDO $pdo): array
                service.name   AS service
         FROM service
         JOIN operation ON operation.id = service.operation_id   -- к сервису — его операция
-        JOIN category  ON category.id = operation.category_id   -- к операции — её категория
-        ORDER BY category.id, operation.num, service.id");
+        JOIN product   ON product.id = operation.product_id     -- к операции — её продукт
+        ORDER BY product.id, operation.num, service.id");
 
     // все случаи деградации 
     $cases = query($pdo, 'SELECT service_id, metric_id, pct FROM degradation_case ORDER BY pct');
@@ -88,7 +88,7 @@ function data(PDO $pdo): array
     return [
         'metrics' => $metrics,
         'buckets' => $buckets,
-        'categories' => $categories,
+        'products' => $products,
         // array_values убирает ключи-id: [4 => …, 7 => …] → […, …], чтобы в JSON вышел список, а не объект
         'rows' => array_values($rows),
     ];

@@ -6,11 +6,12 @@ import { defaultSettings } from './config.js';
 
 
 export const state = {
-    data: null,                    // данные с сервера (ответ /api/data): metrics, buckets, categories, rows
-    selectedGroupId: '',           // выбранная группа операций; '' — все группы
+    data: null,                    // данные с сервера (ответ /api/data): metrics, buckets, products, rows
+    selectedProductId: '',         // выбранный продукт; '' — все продукты
     selectedStepen: null,        // выбранная степень: 0..3, или null — «все»
     settings: defaultSettings(),   // границы степеней; при открытии страницы — всегда по умолчанию
     controls: null,                // элементы панели настройки — чтобы потом их обновлять
+    openMetrics: {},               // какие карточки метрик раскрыты: { id метрики: true }; сначала все скрыты
 };
 
 //конст - заменить обьект другим обьектом 
