@@ -4,9 +4,9 @@
 // Что здесь, по порядку:
 //   1. Степени: какая степень у процента, диапазоны и подписи степеней, подсчёт аварий по степеням.
 //   2. Сервисы: фильтр по продукту, статистика по сервисам для полос и их общий масштаб.
-//   3. Таблица: колонки (диапазоны, разрезанные границами степеней), склейка пустых колонок, подсчёт по колонкам.
+//   3. Таблица: колонки (диапазоны по 10% из базы) и подсчёт аварий по ним.
 
-import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
+import { STEPEN_BOUNDS, STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 
 
@@ -26,7 +26,7 @@ export function sum(numbers) {
 
 /** Номер степени деградации для процента: 0 — минимальная, 1 — частичная, 2 — значительная, 3 — полная */
 export function stepenOf(percent) {
-    const bounds = state.settings.bounds;
+    const bounds = STEPEN_BOUNDS;
     for (let i = 0; i < bounds.length; i++) {
         if (percent <= bounds[i]) {
             return i;
@@ -41,7 +41,7 @@ export function stepenOf(percent) {
  * Например: { name: 'Частичная', letter: 'Ч', from: 21, to: 50, color: '#fbc22c', textColor: '#0b0b0b' }
  */
 export function getStepenRanges() {
-    const bounds = state.settings.bounds;
+    const bounds = STEPEN_BOUNDS;
     const result = [];
 
     for (let i = 0; i < 4; i++) {
@@ -134,16 +134,6 @@ export function maxShownCount(statsByMetric) {
 // 3. Таблица: колонки и подсчёт по ним
 // ============================================================================
 
-/** Есть ли в списке хоть один процент от from до to включительно */
-function hasPercentInRange(percents, from, to) {
-    for (const percent of percents) {
-        if (percent >= from && percent <= to) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /** Сколько процентов из списка попадает в диапазон от from до to включительно */
 function countPercentsInRange(percents, from, to) {
     let count = 0;
@@ -156,63 +146,16 @@ function countPercentsInRange(percents, from, to) {
 }
 
 /**
- * Колонки таблицы: диапазоны из базы (0–10, 11–20, …), разрезанные границами степеней,
- * чтобы каждая колонка целиком относилась к одной степени.
- * Например, при границе 25 диапазон 21–30 превращается в две колонки: 21–25 и 26–30.
+ * Колонки таблицы — диапазоны из базы по 10%: 0–10, 11–20, …, 91–100.
+ * Границы степеней (20, 50, 80) кратны 10, поэтому каждая колонка целиком относится к одной степени.
  * Возвращает список колонок [{ from, to, stepen }], где stepen — номер степени колонки.
  */
 export function buildTableColumns() {
     const columns = [];
     for (const bucket of state.data.buckets) {
-        let from = bucket.pct_from;
-
-        // если внутри диапазона проходит граница степени — отрезаем кусок до неё
-        for (const bound of state.settings.bounds) {
-            if (bound >= from && bound < bucket.pct_to) {
-                columns.push({ from: from, to: bound, stepen: stepenOf(bound) });
-                from = bound + 1;
-            }
-        }
-
-        // остаток диапазона — ещё одна колонка
-        columns.push({ from: from, to: bucket.pct_to, stepen: stepenOf(bucket.pct_to) });
+        columns.push({ from: bucket.pct_from, to: bucket.pct_to, stepen: stepenOf(bucket.pct_to) });
     }
     return columns;
-}
-
-/**
- * Соседние пустые колонки одной степени склеиваются в одну (43–50, 51–60, 61–70 → 43–70),
- * чтобы таблица не разрасталась нулями. percents — все проценты, которые попадут в таблицу.
- */
-export function mergeEmptyColumns(columns, percents) {
-    const result = [];
-    for (const column of columns) {
-        const isEmpty = !hasPercentInRange(percents, column.from, column.to);
-
-        // последняя уже добавленная колонка (или null, если ещё ничего не добавили)
-        const previous = result.length > 0 ? result[result.length - 1] : null;
-
-        const canMerge = isEmpty && previous !== null && previous.isEmpty && previous.stepen === column.stepen;
-        if (canMerge) {
-            previous.to = column.to;   // растягиваем предыдущую колонку
-        } else {
-            result.push({ from: column.from, to: column.to, stepen: column.stepen, isEmpty: isEmpty });
-        }
-    }
-    return result;
-}
-
-/** Все проценты всех показанных сервисов по всем метрикам — одним списком */
-export function allPercents(rows) {
-    const result = [];
-    for (const row of rows) {
-        for (const metric of state.data.metrics) {
-            for (const percent of row.percents[metric.id]) {
-                result.push(percent);
-            }
-        }
-    }
-    return result;
 }
 
 /**

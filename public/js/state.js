@@ -2,15 +2,10 @@
 // Это один общий объект на все модули: модуль выполняется браузером один раз, поэтому каждый,
 // кто пишет import { state } from './state.js', получает этот же самый объект и видит его изменения.
 
-import { defaultSettings } from './config.js';
-
-
 export const state = {
     data: null,                    // данные с сервера (ответ /api/data): metrics, buckets, products, rows
     selectedProductId: '',         // выбранный продукт; '' — все продукты
     selectedStepen: null,        // выбранная степень: 0..3, или null — «все»
-    settings: defaultSettings(),   // границы степеней; при открытии страницы — всегда по умолчанию
-    controls: null,                // элементы панели настройки — чтобы потом их обновлять
     openMetrics: {},               // какие карточки метрик раскрыты: { id метрики: true }; сначала все скрыты
 };
 

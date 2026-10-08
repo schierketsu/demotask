@@ -47,11 +47,11 @@ p { margin: 0; }
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
-/* Чипы, списки, поля ввода и кнопки — в одном стиле: «таблетка» с тонкой рамкой; выбранное и активное — тёмной рамкой */
-.chip, select, .stepen-bound input, .card-head button {
+/* Чипы и списки — в одном стиле: «таблетка» с тонкой рамкой; выбранное и активное — тёмной рамкой */
+.chip, select {
     padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg);
 }
-.chip[aria-checked="true"], select:focus-visible, .stepen-bound input:focus-visible {
+.chip[aria-checked="true"], select:focus-visible {
     border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none;
 }
 
@@ -93,84 +93,21 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .dimmed { opacity: .25; }
 .empty { color: var(--text-2); padding: 12px 0; }
 
-/* --- шкала степеней: цветная «таблетка» с номерами и названиями, три ручки и значения над ними --- */
-.range, .range-scale {
-    --thumb: 26px;      /* ширина ручки */
-    --handle: 52px;     /* высота ручки */
-    --bubble: 38px;     /* место над шкалой под значения границ */
-    --handle-ink: #1e293b;
-}
-.range { position: relative; height: calc(var(--bubble) + var(--handle)); margin-top: 12px; }
-/* отступ = половина ширины ручки: центр ручки ходит от thumb/2 до (ширина − thumb/2), шкала — между ними */
-.range-track {
-    position: absolute; left: calc(var(--thumb) / 2); right: calc(var(--thumb) / 2);
-    top: calc(var(--bubble) + (var(--handle) - 44px) / 2); height: 44px;
-    display: flex; border-radius: 999px; overflow: hidden;
-}
-/* min-width: 0 и без отступов у самого отрезка — ширина задаётся только границами, стыки цветов точно под ручками.
-   Номер и название, которым не хватает места между ручками, скрываются из JS (fitSegmentLabels) */
+/* --- шкала степеней: цветная «таблетка» с номерами и названиями; границы постоянные --- */
+.range { margin-top: 12px; }
+.range-track { display: flex; height: 44px; border-radius: 999px; overflow: hidden; }
+/* ширина отрезка задаётся только размером диапазона степени (flex-grow из JS) */
 .range-track span {
     flex-basis: 0; min-width: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     overflow: hidden; white-space: nowrap;
 }
-.range-track b { max-width: 100%; font-size: var(--fs-m); line-height: 17px; overflow: hidden; }
-.range-track small { max-width: 100%; font-size: var(--fs-s); line-height: 14px; overflow: hidden; }
-.range input {
-    position: absolute; left: 0; top: var(--bubble); width: 100%; height: var(--handle); margin: 0;
-    background: none; pointer-events: none; -webkit-appearance: none; appearance: none;
-}
-.range input::-webkit-slider-runnable-track { height: var(--handle); background: none; }
-.range input::-moz-range-track { background: none; }
-/* ручка: белая капсула с тёмной рамкой и тремя полосками-«хваталкой» */
-.range input::-webkit-slider-thumb {
-    -webkit-appearance: none; pointer-events: auto; cursor: ew-resize;
-    width: var(--thumb); height: var(--handle); border-radius: 999px;
-    border: 2px solid var(--handle-ink); box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
-    background:
-        linear-gradient(var(--handle-ink), var(--handle-ink)) calc(50% - 4px) 50% / 1.5px 14px no-repeat,
-        linear-gradient(var(--handle-ink), var(--handle-ink)) 50% 50% / 1.5px 14px no-repeat,
-        linear-gradient(var(--handle-ink), var(--handle-ink)) calc(50% + 4px) 50% / 1.5px 14px no-repeat,
-        #fff;
-}
-.range input::-moz-range-thumb {
-    pointer-events: auto; cursor: ew-resize; box-sizing: border-box;
-    width: var(--thumb); height: var(--handle); border-radius: 999px;
-    border: 2px solid var(--handle-ink); box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
-    background:
-        linear-gradient(var(--handle-ink), var(--handle-ink)) calc(50% - 4px) 50% / 1.5px 14px no-repeat,
-        linear-gradient(var(--handle-ink), var(--handle-ink)) 50% 50% / 1.5px 14px no-repeat,
-        linear-gradient(var(--handle-ink), var(--handle-ink)) calc(50% + 4px) 50% / 1.5px 14px no-repeat,
-        #fff;
-}
-.range input:focus-visible { outline: none; }
-.range input:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(30, 41, 59, .25); }
-.range input:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 4px rgba(30, 41, 59, .25); }
-/* значение границы: белое «облачко» с хвостиком вниз, к ручке */
-.range-bubble {
-    position: absolute; top: 0; transform: translateX(-50%); pointer-events: none;
-    padding: 4px 9px; border-radius: 8px; background: #fff; color: var(--handle-ink);
-    font-size: var(--fs-m); font-weight: 700; line-height: 20px; font-variant-numeric: tabular-nums;
-    filter: drop-shadow(0 2px 4px rgba(15, 23, 42, .16));
-}
-.range-bubble::after {
-    content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
-    border: 6px solid transparent; border-top-color: #fff; border-bottom: 0;
-}
+.range-track b { font-size: var(--fs-m); line-height: 17px; }
+.range-track small { font-size: var(--fs-s); line-height: 14px; }
 /* деления каждые 10% и подписи под ними */
-.range-scale { position: relative; height: 32px; margin: 8px calc(var(--thumb) / 2) 0; font-size: var(--fs-s); color: var(--text-2); }
+.range-scale { position: relative; height: 32px; margin-top: 8px; font-size: var(--fs-s); color: var(--text-2); }
 .range-scale span { position: absolute; top: 0; padding-top: 14px; transform: translateX(-50%); }
 .range-scale span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 9px; background: #cfd4dc; }
-
-.stepen-tiles { display: grid; gap: 12px; margin-top: 16px; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); }
-.stepen-tile { display: flex; gap: 12px; align-items: center; padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
-/* квадратик цвета степени — только для наглядности, цвет не меняется */
-.stepen-swatch { width: 44px; height: 44px; border-radius: 8px; flex: none; }
-.stepen-bound { display: block; margin-top: 4px; color: var(--text-2); }
-/* без системных стрелок: значение меняется вводом, клавишами ↑/↓ или ползунком на шкале */
-.stepen-bound input { width: 5em; text-align: center; -moz-appearance: textfield; appearance: textfield; }
-.stepen-bound input::-webkit-inner-spin-button, .stepen-bound input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-.stepen-bound input[readonly] { cursor: default; }  /* «до 100 %» у последней степени — не редактируется */
 
 /* --- карточка метрики: слева сводка (кольцо, легенда, полосы сервисов), справа детализация (таблица),
    между ними линия на всю высоту карточки; на узком экране — одно под другим.

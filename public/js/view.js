@@ -11,12 +11,12 @@
 //
 // Сторонних библиотек нет — всё рисуется обычными HTML- и SVG-элементами.
 // Тексты из данных вставляются только через textContent: так они не могут превратиться в HTML-код.
-// Отсюда другие модули берут: render, а также помощники createElement и byId.
+// Отсюда другие модули берут: render, renderStepenScale, а также помощники createElement и byId.
 
 import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 import {
-    allPercents, buildServiceStats, rowsOfSelectedProduct, getStepenRanges, maxShownCount, mergeEmptyColumns, formatRange, sum,
+    buildServiceStats, rowsOfSelectedProduct, getStepenRanges, maxShownCount, formatRange, sum,
     buildTableColumns, buildTableRows,
 } from './calc.js';
 
@@ -114,9 +114,8 @@ export function render() {
     // общий масштаб полос — самое большое значение среди всех метрик (не меньше 1)
     const maxCount = maxShownCount(statsByMetric);
 
-    // колонки таблиц общие для всех метрик, чтобы таблицы совпадали столбец в столбец:
-    // склеиваются только колонки, пустые во всех метриках
-    const columns = mergeEmptyColumns(buildTableColumns(), allPercents(rows));
+    // колонки таблиц — диапазоны по 10%, одинаковые для всех метрик
+    const columns = buildTableColumns();
     const tableRows = buildTableRows(rows, columns);
 
     // по раскрывающемуся блоку на метрику: надпись и под ней карточка
@@ -135,6 +134,30 @@ export function render() {
     }
 }
 
+/**
+ * Шкала степеней над карточками — рисуется один раз при запуске, границы постоянные (STEPEN_BOUNDS):
+ * цветные отрезки с номером и названием степени и деления 0, 10, … 100 под шкалой.
+ */
+export function renderStepenScale() {
+    const ranges = getStepenRanges();
+
+    // отрезки шкалы: ширина — по размеру диапазона степени, фон — её цвет с лёгким градиентом
+    for (let i = 0; i < ranges.length; i++) {
+        const color = ranges[i].color;
+        const segment = createElement('span', { title: ranges[i].name }, byId('range-track'));
+        // ширина — расстояние между границами (20, 30, 30, 20), чтобы стыки цветов пришлись на деления 20, 50, 80
+        segment.style.flexGrow = ranges[i].to - (i > 0 ? ranges[i - 1].to : 0);
+        segment.style.background = `linear-gradient(90deg, color-mix(in srgb, ${color} 86%, #fff), ${color})`;
+        segment.style.color = ranges[i].textColor;   // чёрный или белый текст — что лучше читается на этом цвете
+        createElement('b', {}, segment, String(i + 1));
+        createElement('small', {}, segment, ranges[i].name);
+    }
+
+    // деления под шкалой: 0, 10, 20, … 100
+    for (let value = 0; value <= 100; value += 10) {
+        createElement('span', { style: `left: ${value}%` }, byId('range-scale'), String(value));
+    }
+}
 /** Клик по сектору кольца или строке легенды: выбрать степень; повторный клик — снять выбор */
 function toggleStepen(i) {
     state.selectedStepen = state.selectedStepen === i ? null : i;
@@ -225,7 +248,7 @@ function buildMetricCard(metric, stats, ranges, maxCount, columns, tableRows) {
  * Раскрывающийся блок метрики: надпись («Без учета 5 минут») и под ней карточка.
  * Сделан на стандартных <details>/<summary>: браузер сам раскрывает и скрывает карточку по нажатию
  * на надпись (и с клавиатуры). Какие блоки раскрыты, запоминаем в state.openMetrics —
- * иначе после каждой перерисовки (например, при движении ползунка) блоки снова скрывались бы.
+ * иначе после каждой перерисовки (например, при выборе продукта или степени) блоки снова скрывались бы.
  */
 function buildMetricBlock(metric, card) {
     const block = createElement('details', { class: 'metric-block' });
