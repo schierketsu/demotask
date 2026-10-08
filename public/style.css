@@ -36,7 +36,7 @@ body {
     font: 400 var(--fs-m)/1.4 "Styrene A LC", system-ui, sans-serif;
 }
 
-/* Bold — заголовки и числа на шкале степеней */
+/* Bold — заголовки */
 h1, h2, h3, th { font-weight: 700; }
 h1 { margin: 0 0 4px; font-size: var(--fs-l); }
 h2 { margin: 0 0 4px; font-size: var(--fs-m); }
@@ -47,15 +47,11 @@ p { margin: 0; }
 button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
-/* Чипы и списки — в одном стиле: «таблетка» с тонкой рамкой; выбранное и активное — тёмной рамкой */
-.chip, select {
-    padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg);
-}
-.chip[aria-checked="true"], select:focus-visible {
-    border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none;
-}
+/* Список — «таблетка» с тонкой рамкой; активный — тёмной рамкой */
+select { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg); }
+select:focus-visible { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none; }
 
-/* верхняя строка: продукт и степени деградации — в одну строку (переносится только на узком экране) */
+/* верхняя строка с фильтром продукта */
 .filters { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 0 0 16px; }
 /* своя стрелка вместо системной, чтобы список выглядел как чип */
 select {
@@ -78,8 +74,6 @@ select {
     select option:hover, select option:focus-visible { background: #f1f5f9; outline: none; }
     select option:checked { background: #eaf2fd; }
 }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.chip { display: inline-flex; align-items: center; gap: 6px; }
 
 .error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid #ef3124; border-radius: 8px; }
 
@@ -93,17 +87,20 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .dimmed { opacity: .25; }
 .empty { color: var(--text-2); padding: 12px 0; }
 
-/* --- шкала степеней: цветная «таблетка» с номерами и названиями; границы постоянные --- */
+/* --- шкала степеней: цветная «таблетка» с названиями степеней; границы постоянные.
+   Отрезки — кнопки: клик выбирает степень, остальные приглушаются (.dimmed), как секторы кольца --- */
 .range { margin-top: 12px; }
 .range-track { display: flex; height: 44px; border-radius: 999px; overflow: hidden; }
 /* ширина отрезка задаётся только размером диапазона степени (flex-grow из JS) */
-.range-track span {
-    flex-basis: 0; min-width: 0;
+.range-track button {
+    flex-basis: 0; min-width: 0; padding: 0; border: 0; transition: opacity .15s;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     overflow: hidden; white-space: nowrap;
 }
+.range-track button:hover { opacity: .85; }
+.range-track button.dimmed:hover { opacity: .5; }
+.range-track button:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
 .range-track b { font-size: var(--fs-m); line-height: 17px; }
-.range-track small { font-size: var(--fs-s); line-height: 14px; }
 /* деления каждые 10% и подписи под ними */
 .range-scale { position: relative; height: 32px; margin-top: 8px; font-size: var(--fs-s); color: var(--text-2); }
 .range-scale span { position: absolute; top: 0; padding-top: 14px; transform: translateX(-50%); }

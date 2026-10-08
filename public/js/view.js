@@ -1,9 +1,9 @@
-// view.js — всё отображение страницы: чипы степеней над страницей и карточки метрик
+// view.js — всё отображение страницы: шкала степеней (по ней выбирают степень) и карточки метрик
 // (слева кольцо, легенда и полосы сервисов, справа таблица). Что посчитать — берём из calc.js.
 //
 // Что здесь происходит, по порядку:
 //   1. Помощники: создание элементов, формат чисел, склонения.
-//   2. render() — перерисовать страницу: чипы степеней и карточки метрик.
+//   2. render() — перерисовать страницу: выбор на шкале степеней и карточки метрик.
 //   3. Всплывающая подсказка.
 //   4. Кольцевая диаграмма (SVG) с легендой.
 //   5. Полосы по сервисам.
@@ -97,13 +97,13 @@ function isDimmed(index) {
 // 2. render() — перерисовать страницу
 // ============================================================================
 
-/** Перерисовать всё, что зависит от данных и настроек: чипы и карточки метрик */
+/** Перерисовать всё, что зависит от данных и выбора: подсветку шкалы и карточки метрик */
 export function render() {
     const ranges = getStepenRanges();
     const rows = rowsOfSelectedProduct();
     const metrics = state.data.metrics;
 
-    renderChips(ranges);
+    markSelectedStepen();
 
     // для каждой метрики — сколько аварий каждой степени у каждого сервиса
     const statsByMetric = [];
@@ -136,7 +136,8 @@ export function render() {
 
 /**
  * Шкала степеней над карточками — рисуется один раз при запуске, границы постоянные (STEPEN_BOUNDS):
- * цветные отрезки с номером и названием степени и деления 0, 10, … 100 под шкалой.
+ * цветные отрезки с названием степени и деления 0, 10, … 100 под шкалой.
+ * Отрезок — кнопка: клик выбирает степень, повторный клик снимает выбор (снова видны все степени).
  */
 export function renderStepenScale() {
     const ranges = getStepenRanges();
@@ -144,13 +145,15 @@ export function renderStepenScale() {
     // отрезки шкалы: ширина — по размеру диапазона степени, фон — её цвет с лёгким градиентом
     for (let i = 0; i < ranges.length; i++) {
         const color = ranges[i].color;
-        const segment = createElement('span', { title: ranges[i].name }, byId('range-track'));
+        const segment = createElement('button', { type: 'button', title: formatRange(ranges[i]) }, byId('range-track'));
         // ширина — расстояние между границами (20, 30, 30, 20), чтобы стыки цветов пришлись на деления 20, 50, 80
         segment.style.flexGrow = ranges[i].to - (i > 0 ? ranges[i - 1].to : 0);
         segment.style.background = `linear-gradient(90deg, color-mix(in srgb, ${color} 86%, #fff), ${color})`;
         segment.style.color = ranges[i].textColor;   // чёрный или белый текст — что лучше читается на этом цвете
-        createElement('b', {}, segment, String(i + 1));
-        createElement('small', {}, segment, ranges[i].name);
+        createElement('b', {}, segment, ranges[i].name);   // название степени — жирным, по центру отрезка
+        segment.addEventListener('click', function () {
+            toggleStepen(i);
+        });
     }
 
     // деления под шкалой: 0, 10, 20, … 100
@@ -158,45 +161,20 @@ export function renderStepenScale() {
         createElement('span', { style: `left: ${value}%` }, byId('range-scale'), String(value));
     }
 }
-/** Клик по сектору кольца или строке легенды: выбрать степень; повторный клик — снять выбор */
+
+/** Клик по отрезку шкалы, сектору кольца или строке легенды: выбрать степень; повторный клик — снять выбор */
 function toggleStepen(i) {
     state.selectedStepen = state.selectedStepen === i ? null : i;
     render();
 }
 
-/** Чипы над страницей: «Все» и по чипу на каждую степень */
-function renderChips(ranges) {
-    const chips = byId('chips');
-    chips.replaceChildren();   // убираем старые чипы
-
-    createElement('span', { class: 'muted' }, chips, 'Степень деградации');
-    chips.append(createChip('Все', null, null, null));
-    for (let i = 0; i < ranges.length; i++) {
-        chips.append(createChip(formatRange(ranges[i]), i, ranges[i].color, ranges[i].name));
+/** Подсветить выбор на шкале: выбранная степень яркая, остальные приглушены (как секторы кольца) */
+function markSelectedStepen() {
+    const segments = byId('range-track').children;
+    for (let i = 0; i < segments.length; i++) {
+        segments[i].classList.toggle('dimmed', isDimmed(i));
+        segments[i].setAttribute('aria-pressed', String(state.selectedStepen === i));
     }
-}
-
-/**
- * Один чип. На чипе степени — только цвет и проценты; название — во всплывающей подсказке
- * и для экранного диктора. index — номер степени (null у чипа «Все»).
- */
-function createChip(label, index, color, name) {
-    const attrs = { type: 'button', role: 'radio', class: 'chip', 'aria-checked': String(state.selectedStepen === index) };
-    if (name !== null) {
-        attrs.title = name;
-        attrs['aria-label'] = `${name}, ${label}`;
-    }
-    const button = createElement('button', attrs);
-    if (color !== null) {
-        createElement('span', { class: 'color-key', style: `background: ${color}` }, button);   // цветной кружок
-    }
-    button.append(label);
-
-    button.addEventListener('click', function () {
-        state.selectedStepen = index;
-        render();
-    });
-    return button;
 }
 
 /**
