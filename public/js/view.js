@@ -73,18 +73,20 @@ function isDimmed(index) {
 }
 
 /**
- * Чип сервиса — название сервиса кнопкой: по нажатию открывается окно его степеней деградации.
- * У сервиса со своими границами степеней чип синий (класс custom) — видно, что он изменён.
- * После сохранения или сброса в окне страница перерисовывается (render).
+ * Чип сервиса — название сервиса кнопкой в ячейке таблицы cell: по нажатию открывается окно его степеней деградации.
+ * У сервиса со своими границами степеней у чипа чёрная обводка (класс custom) — видно, что он изменён.
+ * После сохранения в окне страница перерисовывается (render).
+ * Нажатие ловим на всей ячейке, а не только на кнопке: в высокой строке кнопка занимает лишь середину ячейки.
+ * С клавиатуры тоже работает — Enter на кнопке «всплывает» до ячейки.
  */
-function createServiceChip(serviceId, name, isCustom, parent) {
+function createServiceChip(serviceId, name, isCustom, cell) {
     const chip = createElement('button', {
         type: 'button',
         class: isCustom ? 'service-chip custom' : 'service-chip',
         'aria-haspopup': 'dialog',
         title: isCustom ? 'Свои границы степеней — нажмите, чтобы изменить' : 'Нажмите, чтобы задать свои границы степеней',
-    }, parent, name);
-    chip.addEventListener('click', function () {
+    }, cell, name);
+    cell.addEventListener('click', function () {
         openServiceDialog(serviceId, render);
     });
     return chip;
@@ -611,7 +613,8 @@ function renderTable(host, metric, columns, rows) {
                     createElement('td', { rowspan: operationRows.length }, tr, String(row.operation_num));
                     createElement('td', { rowspan: operationRows.length, class: 'name' }, tr, row.operation);
                 }
-                const serviceCell = createElement('td', { class: 'name' }, tr);
+                // ячейка сервиса целиком — чип: серая, как «Всего»; у сервиса со своими границами — с чёрной обводкой
+                const serviceCell = createElement('td', { class: row.isCustom ? 'name service-cell custom' : 'name service-cell' }, tr);
                 createServiceChip(row.service_id, row.service, row.isCustom, serviceCell);
                 addValueCells(tr, row.columnCounts[metric.id], row.bounds);
             }

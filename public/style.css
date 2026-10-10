@@ -19,10 +19,8 @@
     --line: #e6e5e0;
     --wash: #f4f4f2;
 
-    /* синий из фирменной палитры — «у сервиса свои границы степеней» (среди цветов степеней его нет) */
+    /* синий из фирменной палитры — рамка фокуса с клавиатуры у чипа сервиса (среди цветов степеней его нет) */
     --custom: #2b73fe;
-    --custom-bg: #eaf1ff;
-    --custom-text: #1d56c9;
 
     /* три размера шрифта на всю страницу */
     --fs-l: 24px;  /* заголовок страницы, число в центре диаграммы */
@@ -110,8 +108,6 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .range-scale { position: relative; height: 32px; margin-top: 8px; font-size: var(--fs-s); color: var(--text-2); }
 .range-scale span { position: absolute; top: 0; padding-top: 14px; transform: translateX(-50%); }
 .range-scale span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 9px; background: #cfd4dc; }
-/* подсказка под шкалой: «Это границы по умолчанию…» */
-.scale-hint { margin-top: 6px; }
 
 /* --- карточка метрики: слева сводка (кольцо, легенда, полосы сервисов), справа детализация (таблица),
    между ними линия на всю высоту карточки; на узком экране — одно под другим.
@@ -202,56 +198,111 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .tooltip-key { width: 12px; height: 3px; border-radius: 1px; }
 .tooltip-label { color: var(--text-2); }
 
-/* --- чип сервиса: название-кнопка, по нажатию открывается окно степеней сервиса --- */
+/* --- чип сервиса в таблице: ячейка с названием сервиса — кнопка, по нажатию открывается окно сервиса.
+   Выглядит как остальные ячейки таблицы: фон на самой ячейке (серый, как у «Всего»), те же скругления и отступы,
+   а кнопка внутри прозрачная и растянута на всю ширину ячейки --- */
+.grid td.service-cell { padding: 0; background: var(--wash); cursor: pointer; transition: opacity .15s, background-color .15s; }
+.grid td.service-cell:hover { background: #ebebe8; }   /* подсветка — на всю ячейку, не только на кнопку */
 .service-chip {
-    display: inline-flex; align-items: center; gap: 6px; max-width: 100%;
-    padding: 2px 10px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
-    text-align: left; transition: border-color .15s;
+    display: block; width: 100%; padding: 10px 14px; border: 0; border-radius: 4px; background: none;
+    text-align: left;
 }
-.service-chip:hover { border-color: var(--text-2); }
-.service-chip:focus-visible { outline: 2px solid var(--custom); outline-offset: 1px; }
-/* у сервиса свои границы степеней — чип синий */
-.service-chip.custom { border-color: var(--custom); background: var(--custom-bg); color: var(--custom-text); }
+.service-chip:focus-visible { outline: 2px solid var(--custom); outline-offset: -2px; }
+/* у сервиса свои границы степеней — чёрная обводка по краю ячейки внутрь; фон и текст — как у остальных */
+.grid td.service-cell.custom { box-shadow: inset 0 0 0 2px var(--text); }
 
-/* --- окно сервиса (<dialog>) --- */
+/* --- окно сервиса (<dialog>): «Индивидуальные границы деградации» --- */
 .dialog {
-    width: min(600px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0;
-    border: 0; border-radius: 16px; box-shadow: 0 20px 60px rgba(15, 23, 42, .25); color: var(--text);
+    width: min(800px, calc(100vw - 32px)); max-height: calc(100vh - 32px); padding: 0;
+    border: 0; border-radius: 20px; box-shadow: 0 24px 64px rgba(15, 23, 42, .25); color: var(--text);
 }
 .dialog::backdrop { background: rgba(15, 23, 42, .35); }
-.dialog-body { display: grid; gap: 16px; padding: 24px; }
-.dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
-.dialog-close { width: 32px; height: 32px; flex: none; border: 0; border-radius: 8px; background: none; font-size: var(--fs-l); line-height: 1; }
+.dialog-body { display: grid; gap: 20px; padding: 32px 32px 20px; }
+.dialog-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+.dialog-title { margin: 0 0 4px; font-size: var(--fs-l); }
+/* крестик — две тонкие линии накрест */
+.dialog-close { position: relative; width: 36px; height: 36px; flex: none; border: 0; border-radius: 10px; background: none; }
 .dialog-close:hover { background: var(--wash); }
-.dialog-foot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.dialog-close::before, .dialog-close::after {
+    content: ""; position: absolute; top: 50%; left: 50%; width: 20px; height: 2px; border-radius: 1px; background: currentColor;
+}
+.dialog-close::before { transform: translate(-50%, -50%) rotate(45deg); }
+.dialog-close::after { transform: translate(-50%, -50%) rotate(-45deg); }
+/* разделы окна отделены тонкой линией */
+.dialog-section-title { margin: 0; padding-top: 20px; border-top: 1px solid var(--line); }
+
+/* подвал с кнопками — под линией на всю ширину окна */
+.dialog-foot { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 20px 32px; border-top: 1px solid var(--line); }
 .dialog-foot .spacer { flex: 1; }
-.btn { padding: 8px 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--bg); }
+.btn { padding: 12px 28px; border: 1px solid #d5d8de; border-radius: 999px; background: var(--bg); }
 .btn:hover:not(:disabled) { border-color: var(--text-2); }
 .btn.primary { border-color: var(--text); background: var(--text); color: #fff; }
 .btn:disabled { opacity: .4; cursor: default; }
 
-/* аварии сервиса кружками: кружок посередине диапазона (0–10 → 5%, 21–30 → 25% ширины), в нём — сколько аварий в диапазоне.
-   Отступ 8px слева и справа — чтобы крайние кружки (0–10, 91–100) не упирались в края окна */
-.bounds-editor { display: grid; gap: 4px; }
-.bounds-caption { margin-top: 4px; color: var(--text-2); }
-.bounds-dots { position: relative; height: 24px; margin: 0 8px; }
-.bounds-dots span {
-    position: absolute; top: 1px; min-width: 22px; height: 22px; padding: 0 5px; border-radius: 11px;
-    transform: translateX(-50%); display: flex; align-items: center; justify-content: center;
-    font-size: var(--fs-s); font-variant-numeric: tabular-nums;
+/* цветная точка перед названием степени */
+.stepen-dot { display: inline-block; width: 12px; height: 12px; margin-right: 8px; border-radius: 50%; vertical-align: -1px; }
+
+/* аварии сервиса: слева название метрики, справа ось с засечками каждые 20% и кружки на ней.
+   Кружок стоит посередине диапазона (0–10 → 5%, 21–30 → 25% ширины оси), в нём — сколько аварий в диапазоне */
+.case-tracks { display: grid; grid-template-columns: max-content 1fr; align-items: center; gap: 4px 28px; padding-right: 12px; }
+.case-track { position: relative; height: 40px; }
+.case-track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #d5d8de; }
+.case-tick { position: absolute; top: calc(50% - 6px); width: 1px; height: 12px; background: #d5d8de; }
+.case-bubble {
+    position: absolute; top: 50%; transform: translate(-50%, -50%);
+    min-width: 32px; height: 32px; padding: 0 6px; border-radius: 16px;
+    display: flex; align-items: center; justify-content: center; font-weight: 700; font-variant-numeric: tabular-nums;
 }
-.bounds-dots-empty { margin: 0 8px; }
+.case-axis { position: relative; height: 18px; }
+.case-axis span { position: absolute; top: 0; transform: translateX(-50%); }
 
+/* «Границы деградации, %»: четыре колонки степеней с вертикальными линиями между ними */
+.bounds-columns { display: grid; grid-template-columns: repeat(4, 1fr); }
+.bounds-column { display: grid; align-content: start; justify-items: center; gap: 4px; padding: 0 12px; text-align: center; }
+.bounds-column + .bounds-column { border-left: 1px solid var(--line); }
+.bounds-field { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+/* поле с числом и своими стрелками ▲▼ справа; стандартные стрелки поля прячем */
+.stepper { display: flex; align-items: stretch; height: 48px; border: 1px solid #d5d8de; border-radius: 10px; overflow: hidden; }
+.stepper:focus-within { border-color: var(--text); }
+.stepper input {
+    width: 4.2em; padding: 0 12px; border: 0; outline: none; text-align: center;
+    font-variant-numeric: tabular-nums; -moz-appearance: textfield; appearance: textfield;
+}
+.stepper input::-webkit-inner-spin-button, .stepper input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.stepper-arrows { display: grid; grid-template-rows: 1fr 1fr; border-left: 1px solid #d5d8de; }
+.stepper-arrows button { position: relative; width: 32px; padding: 0; border: 0; background: none; }
+.stepper-arrows button:hover { background: var(--wash); }
+/* стрелка — уголок из двух рамок, повёрнутый вверх или вниз */
+.stepper-arrows button::before {
+    content: ""; position: absolute; top: 50%; left: 50%; width: 6px; height: 6px;
+    border-right: 1.5px solid var(--text); border-bottom: 1.5px solid var(--text);
+}
+.stepper-up::before { transform: translate(-50%, -25%) rotate(-135deg); }
+.stepper-down::before { transform: translate(-50%, -75%) rotate(45deg); }
 
-/* поля: «■ Минимальная  0–20%  до [20] %» */
-.bounds-fields { display: grid; gap: 6px; }
-.bounds-field { display: grid; grid-template-columns: 10px 1fr auto 9em; gap: 10px; align-items: center; }
-.bounds-field input { width: 4.5em; padding: 2px 6px; border: 1px solid var(--line); border-radius: 6px; }
+/* «Изменение количества аварий»: табличка в рамке со скруглёнными углами */
+.changes-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+/* fixed — колонки степеней строго одинаковой ширины, а не по содержимому; первая (названия метрик) — 32% */
+.changes { width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.changes tr > :first-child { width: 32%; }
+.changes th, .changes td { padding: 12px 14px; border-left: 1px solid var(--line); border-top: 1px solid var(--line); text-align: center; white-space: nowrap; }
+.changes tr > :first-child { border-left: 0; text-align: left; }
+.changes thead th { border-top: 0; background: #f6f7f9; font-weight: 400; font-size: var(--fs-s); color: var(--text-2); }
+.changes thead .stepen-dot { margin-right: 0; }   /* в заголовке только точка — по центру колонки, без отступа под название */
+.changes tbody th { font-weight: 400; }
+/* изменение в скобках: больше стало — зелёным, меньше — красным */
+.change { margin-left: 6px; }
+.change.up { color: #15803d; }
+.change.down { color: #dc2626; }
 
-/* табличка «сколько аварий какой степени» */
-.bounds-preview { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.bounds-preview th, .bounds-preview td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
-.bounds-preview th:first-child { text-align: left; }
-.bounds-preview thead th { font-weight: 400; color: var(--text-2); }
-.bounds-preview tbody th { font-weight: 400; }
-.bounds-preview .color-key { margin-right: 4px; }
+/* узкий экран: подписи метрик над осями, колонки границ по две в ряд, табличка прокручивается внутри рамки */
+@media (max-width: 640px) {
+    .dialog-body { padding: 24px 20px 16px; }
+    .dialog-foot { padding: 16px 20px; }
+    .case-tracks { grid-template-columns: minmax(0, 1fr); padding: 0 16px; }
+    .bounds-columns { grid-template-columns: repeat(2, 1fr); row-gap: 20px; }
+    .bounds-column:nth-child(3) { border-left: 0; }
+    .stepper input { width: 3em; padding: 0 8px; }
+    .changes-wrap { overflow-x: auto; }
+    .changes { min-width: 520px; }   /* уже не сжимаем — табличка прокручивается внутри рамки */
+}
