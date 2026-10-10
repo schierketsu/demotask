@@ -3,7 +3,8 @@
 // кто пишет import { state } from './state.js', получает этот же самый объект и видит его изменения.
 
 export const state = {
-    data: null,                    // данные с сервера (ответ /api/data): metrics, buckets, products, rows
+    data: null,                    // данные с сервера (ответ /api/data): metrics, buckets, products, months, month, rows
+    selectedMonth: '',             // выбранный месяц «2026-10»; '' — пока не выбран (сервер отдаст последний)
     selectedProductId: '',         // выбранный продукт; '' — все продукты
     selectedStepen: null,        // выбранная степень: 0..3, или null — «все»
     openMetrics: {},               // какие карточки метрик раскрыты: { id метрики: true }; сначала все скрыты

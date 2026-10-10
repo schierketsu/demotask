@@ -33,10 +33,12 @@ CREATE TABLE service (
     name         text NOT NULL
 );
 
--- Случай деградации сервиса: процент деградации — готовый результат анализа, всегда целое число
+-- Случай деградации сервиса: процент деградации — готовый результат анализа, всегда целое число;
+-- case_date — день, когда случай произошёл (по нему дашборд показывает данные за выбранный месяц)
 CREATE TABLE degradation_case (
     id         int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    service_id int NOT NULL REFERENCES service (id),
-    metric_id  int NOT NULL REFERENCES metric (id),
-    pct        int NOT NULL CHECK (pct BETWEEN 0 AND 100)
+    service_id int  NOT NULL REFERENCES service (id),
+    metric_id  int  NOT NULL REFERENCES metric (id),
+    pct        int  NOT NULL CHECK (pct BETWEEN 0 AND 100),
+    case_date  date NOT NULL
 );
