@@ -6,7 +6,8 @@ CREATE TABLE metric (
     name text NOT NULL
 );
 
--- Диапазон глубины деградации: «0-10%» … «91-100%» — колонки таблицы «как в Excel»
+-- Диапазон глубины деградации: «0-10%» … «91-100%» с шагом 10 — колонки таблицы «как в Excel».
+-- Каждый случай деградации относится к одному из этих диапазонов (degradation_case.bucket_id)
 CREATE TABLE bucket (
     id       int PRIMARY KEY,
     label    text NOT NULL,
@@ -33,12 +34,13 @@ CREATE TABLE service (
     name         text NOT NULL
 );
 
--- Случай деградации сервиса: процент деградации — готовый результат анализа, всегда целое число;
+-- Случай деградации сервиса. Глубина деградации — не точный процент, а диапазон с шагом 10
+-- (bucket_id → «21-30%» и т.п.): авария определяется тем, в какой диапазон она попала.
 -- case_date — день, когда случай произошёл (по нему дашборд показывает данные за выбранный месяц)
 CREATE TABLE degradation_case (
     id         int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     service_id int  NOT NULL REFERENCES service (id),
     metric_id  int  NOT NULL REFERENCES metric (id),
-    pct        int  NOT NULL CHECK (pct BETWEEN 0 AND 100),
+    bucket_id  int  NOT NULL REFERENCES bucket (id),
     case_date  date NOT NULL
 );

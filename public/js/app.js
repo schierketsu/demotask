@@ -5,7 +5,9 @@
 //   config.js — постоянные значения: названия, цвета и границы степеней
 //   state.js  — состояние страницы: всё, что страница «помнит»
 //   calc.js   — расчёты: степени, статистика сервисов, колонки и подсчёты для таблиц
+//   dom.js    — помощники: создать элемент, найти элемент по id
 //   view.js   — всё отображение: шкала степеней, чипы, карточки метрик, кольцо, полосы, таблица
+//   service-dialog.js — окно сервиса: свои границы степеней у отдельного сервиса
 //   app.js    — запуск (этот файл)
 //
 // Как это работает:
@@ -13,15 +15,18 @@
 //   render() берёт расчёты из calc.js и рисует страницу
 //   пользователь выбирает продукт или степень → state меняется → render() → страница обновилась
 //   пользователь выбирает месяц → app.js загружает JSON за этот месяц → state.data заменяется → render()
+//   пользователь нажимает на чип сервиса → окно сервиса (service-dialog.js) → сохранил границы → render()
 //
 // Кто кого подключает (стрелки только вниз, по кругу никто никого не импортирует):
-//   app.js  → state.js, view.js, config.js
-//   view.js → state.js, config.js, calc.js
-//   calc.js → state.js, config.js
+//   app.js            → state.js, view.js, config.js, dom.js
+//   view.js           → state.js, config.js, calc.js, dom.js, service-dialog.js
+//   service-dialog.js → state.js, config.js, calc.js, dom.js
+//   calc.js           → state.js, config.js
 
 import { MONTH_NAMES } from './config.js';
 import { state } from './state.js';
-import { byId, createElement, render, renderStepenScale } from './view.js';
+import { byId, createElement } from './dom.js';
+import { render, renderStepenScale } from './view.js';
 
 
 /** «Деградация (без учета 5 минут)» → «Без учета 5 минут»: берём текст в скобках и делаем первую букву заглавной */

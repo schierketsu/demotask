@@ -5,8 +5,8 @@ declare(strict_types=1); //строгий режим (без приведени�
 /*
  * JSON API дашборда. nginx направляет сюда все запросы /api/*.
  *
- *   GET /api/data?month=2026-10  метрики, диапазоны, продукты, список месяцев и проценты деградации
- *                                случаев по сервисам за выбранный месяц (без month — за последний месяц)
+ *   GET /api/data?month=2026-10  метрики, диапазоны, продукты, список месяцев и сколько случаев деградации
+ *                                у каждого сервиса в каждом диапазоне за выбранный месяц (без month — за последний)
  */
 
 function db(): PDO //на вовзрате ожидается обьект PDO
@@ -85,33 +85,43 @@ function data(PDO $pdo, string $month): array
         JOIN product   ON product.id = operation.product_id     -- к операции — её продукт
         ORDER BY product.id, operation.num, service.id");
 
-    // случаи деградации выбранного месяца: to_char превращает дату случая в «2026-10» — сравниваем с месяцем
+    // сколько случаев деградации выбранного месяца у каждого сервиса в каждом диапазоне по каждой метрике.
+    // to_char превращает дату случая в «2026-10» — сравниваем с месяцем; count(*) считает случаи в группе
     $cases = query($pdo, "
-        SELECT service_id, metric_id, pct
+        SELECT service_id, metric_id, bucket_id, count(*) AS cases
         FROM degradation_case
         WHERE to_char(case_date, 'YYYY-MM') = :month
-        ORDER BY pct", ['month' => $month]);
+        GROUP BY service_id, metric_id, bucket_id", ['month' => $month]);
 
-    // прогоняю все сервисы (8) в ассоциативный массивы приписывая доп.поле percents (проценты деградации) в котором два слота пустых metric
+    // место каждого диапазона в списке диапазонов: id диапазона → 0, 1, 2, … (по порядку $buckets)
+    // по этому месту число случаев ляжет в нужную колонку
+    $bucketPosition = [];
+    foreach ($buckets as $position => $bucket) {
+        $bucketPosition[$bucket['id']] = $position;
+    }
+
+    // прогоняю все сервисы (8) в ассоциативный массивы приписывая доп.поле counts — сколько случаев в каждом диапазоне,
+    // для каждой метрики свой список с нулями по числу диапазонов (10):
     //Сервис 1
-    //├── метрика 1 → []
-    //└── метрика 2 → []
+    //├── метрика 1 → [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    //└── метрика 2 → [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     $rows = [];
     foreach ($services as $service) {
         $id = $service['service_id'];
         $rows[$id] = $service;
-        $rows[$id]['percents'] = [];
+        $rows[$id]['counts'] = [];
         foreach ($metrics as $metric) {
-            $rows[$id]['percents'][$metric['id']] = [];
+            $rows[$id]['counts'][$metric['id']] = array_fill(0, count($buckets), 0);   // список из нулей
         }
     }
 
-    // раскладываем каждый случай деградации в список своего сервиса и своей метрики
+    // раскладываем посчитанные случаи по сервисам, метрикам и колонкам-диапазонам:
+    // например, у сервиса 4 по метрике 1 в диапазоне 21-30% 5 случаев → counts[1][2] = 5
     foreach ($cases as $case) {
         $serviceId = $case['service_id'];
         $metricId = $case['metric_id'];
-        //пустое [] = «добавить в конец списка» — чтобы не перезаписывать предыдущие проценты
-        $rows[$serviceId]['percents'][$metricId][] = $case['pct'];   // [] = «добавить в конец списка»
+        $position = $bucketPosition[$case['bucket_id']];
+        $rows[$serviceId]['counts'][$metricId][$position] = $case['cases'];
     }
 
     return [

@@ -35,6 +35,7 @@
             <div class="range-track" id="range-track"></div>
         </div>
         <div class="range-scale" id="range-scale"></div>
+        <p class="small muted scale-hint">Это границы по умолчанию. Чтобы задать сервису свои, нажмите на его название в таблице — у таких сервисов чип синий.</p>
     </section>
 
     <!-- по строке на метрику: кольцо с полосами сервисов и таблица -->
@@ -42,5 +43,8 @@
 </main>
 
 <div class="tooltip" id="tooltip" role="tooltip" hidden></div>
+
+<!-- окно «Степени деградации сервиса»: содержимое собирает service-dialog.js -->
+<dialog class="dialog" id="service-dialog" aria-labelledby="service-dialog-title"></dialog>
 </body>
 </html>

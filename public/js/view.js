@@ -2,7 +2,7 @@
 // (слева кольцо, легенда и полосы сервисов, справа таблица). Что посчитать — берём из calc.js.
 //
 // Что здесь происходит, по порядку:
-//   1. Помощники: создание элементов, формат чисел, склонения.
+//   1. Помощники: SVG-элементы, формат чисел, склонения, чип сервиса.
 //   2. render() — перерисовать страницу: выбор на шкале степеней и карточки метрик.
 //   3. Всплывающая подсказка.
 //   4. Кольцевая диаграмма (SVG) с легендой.
@@ -11,14 +11,17 @@
 //
 // Сторонних библиотек нет — всё рисуется обычными HTML- и SVG-элементами.
 // Тексты из данных вставляются только через textContent: так они не могут превратиться в HTML-код.
-// Отсюда другие модули берут: render, renderStepenScale, а также помощники createElement и byId.
+// Отсюда другие модули берут: render и renderStepenScale.
+// Название сервиса в таблице — кнопка-чип: по нажатию открывается окно его степеней (service-dialog.js).
 
-import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
+import { STEPEN_BOUNDS, STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 import {
     buildServiceStats, rowsOfSelectedProduct, getStepenRanges, maxShownCount, formatRange, sum,
-    buildTableColumns, buildTableRows,
+    buildTableColumns, buildTableRows, stepenOf,
 } from './calc.js';
+import { byId, createElement } from './dom.js';
+import { openServiceDialog } from './service-dialog.js';
 
 
 // ============================================================================
@@ -52,29 +55,6 @@ function accidentsWord(count) {
     return plural(count, ['авария', 'аварии', 'аварий']);
 }
 
-/**
- * Создать HTML-элемент: тег, атрибуты, родитель (в конец которого вставить) и текст — последние два необязательны.
- * Например: createElement('span', { class: 'muted' }, row, '0–20%') → <span class="muted">0–20%</span> в конце row.
- */
-export function createElement(tag, attrs = {}, parent = null, text = null) {
-    const element = document.createElement(tag);
-    for (const name of Object.keys(attrs)) {
-        element.setAttribute(name, attrs[name]);
-    }
-    if (text !== null) {
-        element.textContent = text;
-    }
-    if (parent) {
-        parent.append(element);
-    }
-    return element;
-}
-
-/** Найти элемент страницы по его id */
-export function byId(id) {
-    return document.getElementById(id);
-}
-
 /** То же, что createElement, но для SVG-фигур (круг, контур, текст внутри <svg>) */
 function createSvgElement(tag, attrs, parent) {
     const element = document.createElementNS(SVG_NS, tag);
@@ -90,6 +70,24 @@ function createSvgElement(tag, attrs, parent) {
 /** Приглушать ли элемент степени index: да, если выбрана какая-то другая степень */
 function isDimmed(index) {
     return state.selectedStepen !== null && state.selectedStepen !== index;
+}
+
+/**
+ * Чип сервиса — название сервиса кнопкой: по нажатию открывается окно его степеней деградации.
+ * У сервиса со своими границами степеней чип синий (класс custom) — видно, что он изменён.
+ * После сохранения или сброса в окне страница перерисовывается (render).
+ */
+function createServiceChip(serviceId, name, isCustom, parent) {
+    const chip = createElement('button', {
+        type: 'button',
+        class: isCustom ? 'service-chip custom' : 'service-chip',
+        'aria-haspopup': 'dialog',
+        title: isCustom ? 'Свои границы степеней — нажмите, чтобы изменить' : 'Нажмите, чтобы задать свои границы степеней',
+    }, parent, name);
+    chip.addEventListener('click', function () {
+        openServiceDialog(serviceId, render);
+    });
+    return chip;
 }
 
 
@@ -116,7 +114,7 @@ export function render() {
 
     // колонки таблиц — диапазоны по 10%, одинаковые для всех метрик
     const columns = buildTableColumns();
-    const tableRows = buildTableRows(rows, columns);
+    const tableRows = buildTableRows(rows);
 
     // по раскрывающемуся блоку на метрику: надпись и под ней карточка
     const container = byId('metric-rows');
@@ -569,15 +567,19 @@ function groupBy(rows, getKey) {
  *   metric — метрика, для которой строим таблицу
  *   columns — колонки диапазонов [{ from: 21, to: 30, stepen: 1 }], stepen — номер степени колонки.
  *             Колонки общие для всех метрик, поэтому таблицы разных метрик совпадают столбец в столбец
- *   rows — сервисы; rows[].counts[id метрики] — сколько аварий попало в каждую колонку
+ *   rows — сервисы; rows[].columnCounts[id метрики] — сколько аварий попало в каждую колонку,
+ *          rows[].bounds — границы степеней сервиса (свои или по умолчанию), rows[].isCustom — свои ли они
  */
 function renderTable(host, metric, columns, rows) {
-    // ячейки с числами для одной строки: counts[i] — сколько аварий в колонке i
-    function addValueCells(tr, counts) {
+    // ячейки с числами для одной строки: counts[i] — сколько аварий в колонке i.
+    // bounds — границы степеней строки. У сервиса со своими границами колонка может относиться
+    // не к той степени, что в заголовке, — тогда ячейка красится цветом его степени
+    function addValueCells(tr, counts, bounds) {
         for (let i = 0; i < counts.length; i++) {
+            const stepen = stepenOf(columns[i].to, bounds);
             const cell = createElement('td', {}, tr, numberFormat.format(counts[i]));
-            paintCell(cell, counts[i], STEPEN_COLORS[columns[i].stepen]);
-            if (isDimmed(columns[i].stepen)) {
+            paintCell(cell, counts[i], STEPEN_COLORS[stepen]);
+            if (isDimmed(stepen)) {
                 cell.classList.add('dimmed');
             }
         }
@@ -592,13 +594,13 @@ function renderTable(host, metric, columns, rows) {
     // строка «Всего» — по всем показанным сервисам
     const totalRow = createElement('tr', { class: 'sum' }, body);
     createElement('td', { colspan: 3, class: 'name' }, totalRow, 'Всего');
-    addValueCells(totalRow, sumByColumn(rows, metric, columns.length));
+    addValueCells(totalRow, sumByColumn(rows, metric, columns.length), STEPEN_BOUNDS);
 
     for (const productRows of groupBy(rows, function (row) { return row.product_id; })) {
         // строка продукта с подытогом по его сервисам
         const productRow = createElement('tr', { class: 'sum' }, body);
         createElement('td', { colspan: 3, class: 'name' }, productRow, productRows[0].product);
-        addValueCells(productRow, sumByColumn(productRows, metric, columns.length));
+        addValueCells(productRow, sumByColumn(productRows, metric, columns.length), STEPEN_BOUNDS);
 
         // сервисы группы. Номер и название операции пишем один раз — в ячейку высотой во все её сервисы (rowspan)
         for (const operationRows of groupBy(productRows, function (row) { return row.operation_id; })) {
@@ -609,8 +611,9 @@ function renderTable(host, metric, columns, rows) {
                     createElement('td', { rowspan: operationRows.length }, tr, String(row.operation_num));
                     createElement('td', { rowspan: operationRows.length, class: 'name' }, tr, row.operation);
                 }
-                createElement('td', { class: 'name' }, tr, row.service);
-                addValueCells(tr, row.columnCounts[metric.id]);
+                const serviceCell = createElement('td', { class: 'name' }, tr);
+                createServiceChip(row.service_id, row.service, row.isCustom, serviceCell);
+                addValueCells(tr, row.columnCounts[metric.id], row.bounds);
             }
         }
     }

@@ -1,10 +1,13 @@
-// calc.js — расчёты: степень для процента, диапазоны степеней, колонки таблицы и подготовка данных
+// calc.js — расчёты: степень для диапазона, диапазоны степеней, колонки таблицы и подготовка данных
 // для колец, полос и таблиц. Страницу здесь не трогаем — только считаем; рисует view.js.
 //
+// Аварии приходят с сервера не точными процентами, а количеством в каждом диапазоне по 10%:
+// row.counts[id метрики] = [в 0–10%, в 11–20%, …, в 91–100%] — по порядку state.data.buckets.
+//
 // Что здесь, по порядку:
-//   1. Степени: какая степень у процента, диапазоны и подписи степеней, подсчёт аварий по степеням.
+//   1. Степени: к какой степени относится процент или диапазон, подписи степеней, подсчёт аварий по степеням.
 //   2. Сервисы: фильтр по продукту, статистика по сервисам для полос и их общий масштаб.
-//   3. Таблица: колонки (диапазоны по 10% из базы) и подсчёт аварий по ним.
+//   3. Таблица: колонки (диапазоны по 10% из базы) и строки с количеством аварий в них.
 
 import { STEPEN_BOUNDS, STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
@@ -24,9 +27,27 @@ export function sum(numbers) {
 // 1. Степени
 // ============================================================================
 
-/** Номер степени деградации для процента: 0 — минимальная, 1 — частичная, 2 — значительная, 3 — полная */
-export function stepenOf(percent) {
-    const bounds = STEPEN_BOUNDS;
+/** Заданы ли у сервиса свои границы степеней (в окне сервиса) — тогда его чип синий */
+export function hasOwnBounds(serviceId) {
+    return state.serviceBounds[serviceId] !== undefined;
+}
+
+/**
+ * Границы степеней сервиса: свои, если их задали в окне сервиса (state.serviceBounds), иначе общие по умолчанию.
+ * Например: [30, 60, 90] — минимальная до 30%, частичная до 60%, значительная до 90%
+ */
+export function boundsOf(row) {
+    if (hasOwnBounds(row.service_id)) {
+        return state.serviceBounds[row.service_id];
+    }
+    return STEPEN_BOUNDS;
+}
+
+/**
+ * Номер степени деградации для процента: 0 — минимальная, 1 — частичная, 2 — значительная, 3 — полная.
+ * bounds — границы степеней; не указаны — общие по умолчанию (STEPEN_BOUNDS)
+ */
+export function stepenOf(percent, bounds = STEPEN_BOUNDS) {
     for (let i = 0; i < bounds.length; i++) {
         if (percent <= bounds[i]) {
             return i;
@@ -36,12 +57,11 @@ export function stepenOf(percent) {
 }
 
 /**
- * Диапазоны четырёх степеней при текущих границах — для подписей: название, первая буква,
+ * Диапазоны четырёх степеней при границах bounds (по умолчанию — общих) — для подписей: название, первая буква,
  * диапазон процентов, цвет и цвет текста на нём.
  * Например: { name: 'Частичная', letter: 'Ч', from: 21, to: 50, color: '#fbc22c', textColor: '#0b0b0b' }
  */
-export function getStepenRanges() {
-    const bounds = STEPEN_BOUNDS;
+export function getStepenRanges(bounds = STEPEN_BOUNDS) {
     const result = [];
 
     for (let i = 0; i < 4; i++) {
@@ -66,12 +86,18 @@ export function formatRange(stepen) {
     return `${stepen.from}–${stepen.to}%`;
 }
 
-/** Сколько аварий каждой степени: [минимальных, частичных, значительных, полных] */
-function countByStepen(percents) {
+/**
+ * Сколько аварий каждой степени при границах bounds: [минимальных, частичных, значительных, полных].
+ * bucketCounts — сколько аварий в каждом диапазоне: [в 0–10%, в 11–20%, …] (row.counts[id метрики]).
+ * Степень диапазона — по его верхней границе: границы степеней кратны 10, поэтому диапазон
+ * целиком попадает в одну степень (21–30% при границах 20/50/80 — частичная)
+ */
+export function countByStepen(bucketCounts, bounds) {
     const counts = [0, 0, 0, 0];
-    for (const percent of percents) {
-        const stepen = stepenOf(percent);
-        counts[stepen] = counts[stepen] + 1;
+    const buckets = state.data.buckets;
+    for (let i = 0; i < buckets.length; i++) {
+        const stepen = stepenOf(buckets[i].pct_to, bounds);
+        counts[stepen] = counts[stepen] + bucketCounts[i];
     }
     return counts;
 }
@@ -98,14 +124,14 @@ export function rowsOfSelectedProduct() {
 }
 
 /**
- * Статистика сервисов для одной метрики — сколько у каждого сервиса аварий каждой степени.
- * Только считает; полосы по ней потом рисует view.js.
+ * Статистика сервисов для одной метрики — сколько у каждого сервиса аварий каждой степени
+ * (по его собственным границам, если они заданы). Только считает; полосы по ней потом рисует view.js.
  * Например: [{ name: 'Сервис 1', stepenCounts: [2, 1, 0, 0] }, …]
  */
 export function buildServiceStats(rows, metric) {
     const stats = [];
     for (const row of rows) {
-        stats.push({ name: row.service, stepenCounts: countByStepen(row.percents[metric.id]) });
+        stats.push({ name: row.service, stepenCounts: countByStepen(row.counts[metric.id], boundsOf(row)) });
     }
     return stats;
 }
@@ -131,19 +157,8 @@ export function maxShownCount(statsByMetric) {
 
 
 // ============================================================================
-// 3. Таблица: колонки и подсчёт по ним
+// 3. Таблица: колонки и строки
 // ============================================================================
-
-/** Сколько процентов из списка попадает в диапазон от from до to включительно */
-function countPercentsInRange(percents, from, to) {
-    let count = 0;
-    for (const percent of percents) {
-        if (percent >= from && percent <= to) {
-            count = count + 1;
-        }
-    }
-    return count;
-}
 
 /**
  * Колонки таблицы — диапазоны из базы по 10%: 0–10, 11–20, …, 91–100.
@@ -159,30 +174,24 @@ export function buildTableColumns() {
 }
 
 /**
- * Строки для таблицы: данные сервиса + counts — сколько аварий попало в каждую колонку,
- * отдельно по каждой метрике: counts[id метрики] = [число в 1-й колонке, число во 2-й, …]
+ * Строки для таблицы: данные сервиса + columnCounts — сколько аварий в каждой колонке,
+ * отдельно по каждой метрике: columnCounts[id метрики] = [число в 1-й колонке, число во 2-й, …].
+ * Колонки — те же диапазоны, что пришли с сервера, поэтому количество берём как есть (row.counts)
  */
-export function buildTableRows(rows, columns) {
+export function buildTableRows(rows) {
     const result = [];
     for (const row of rows) {
-        const counts = {};
-        for (const metric of state.data.metrics) {
-            const percents = row.percents[metric.id];
-            const countsInColumns = [];
-            for (const column of columns) {
-                countsInColumns.push(countPercentsInRange(percents, column.from, column.to));
-            }
-            counts[metric.id] = countsInColumns;
-        }
-
         result.push({
             product_id: row.product_id,
             product: row.product,
             operation_id: row.operation_id,
             operation_num: row.operation_num,
             operation: row.operation,
+            service_id: row.service_id,
             service: row.service,
-            columnCounts: counts,
+            bounds: boundsOf(row),           // границы степеней сервиса — по ним красятся ячейки его строки
+            isCustom: hasOwnBounds(row.service_id),
+            columnCounts: row.counts,
         });
     }
     return result;
