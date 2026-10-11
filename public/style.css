@@ -25,7 +25,7 @@
     /* три размера шрифта на всю страницу */
     --fs-l: 24px;  /* заголовок страницы, число в центре диаграммы */
     --fs-m: 15px;  /* заголовки блоков и основной текст */
-    --fs-s: 12px;  /* подписи, шкала, таблица */
+    --fs-s: 12px;  /* подписи, таблица */
 }
 
 * { box-sizing: border-box; }
@@ -89,25 +89,6 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .color-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }
 .dimmed { opacity: .25; }
 .empty { color: var(--text-2); padding: 12px 0; }
-
-/* --- шкала степеней: цветная «таблетка» с названиями степеней; границы постоянные.
-   Отрезки — кнопки: клик выбирает степень, остальные приглушаются (.dimmed), как секторы кольца --- */
-.range { margin-top: 12px; }
-.range-track { display: flex; height: 44px; border-radius: 999px; overflow: hidden; }
-/* ширина отрезка задаётся только размером диапазона степени (flex-grow из JS) */
-.range-track button {
-    flex-basis: 0; min-width: 0; padding: 0; border: 0; transition: opacity .15s;
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    overflow: hidden; white-space: nowrap;
-}
-.range-track button:hover { opacity: .85; }
-.range-track button.dimmed:hover { opacity: .5; }
-.range-track button:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
-.range-track b { font-size: var(--fs-m); line-height: 17px; }
-/* деления каждые 10% и подписи под ними */
-.range-scale { position: relative; height: 32px; margin-top: 8px; font-size: var(--fs-s); color: var(--text-2); }
-.range-scale span { position: absolute; top: 0; padding-top: 14px; transform: translateX(-50%); }
-.range-scale span::before { content: ""; position: absolute; top: 0; left: 50%; width: 1px; height: 9px; background: #cfd4dc; }
 
 /* --- карточка метрики: слева сводка (кольцо, легенда, полосы сервисов), справа детализация (таблица),
    между ними линия на всю высоту карточки; на узком экране — одно под другим.
@@ -182,10 +163,17 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
    задаёт equalizeColumns в view.js */
 .grid th.name { width: 1%; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
+/* названия степеней в шапке — кнопки на всю объединённую ячейку: клик выбирает степень, повторный — снимает выбор */
+.grid th.stepen-head { padding: 0; color: #fff; }   /* белый текст на цвете степени — как у «Полной» */
+.grid th.stepen-head button {
+    display: block; width: 100%; padding: 4px; border: 0; border-radius: 4px; background: none;
+    font-weight: 700; transition: opacity .15s;
+}
+.grid th.stepen-head button:hover { opacity: .75; }
+.grid th.stepen-head button:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
 /* жирные: строки «Всего» и продуктов целиком, в остальных — ненулевые числа */
 .grid tr.sum td, .grid td.has-accidents { font-weight: 700; }
-.grid td.has-accidents { color: var(--text); }   /* на высветленных цветах степеней тёмное число читается лучше всего */
-.grid th.range-column { font-weight: 400; min-width: 36px; }
+.grid td.has-accidents { color: #fff; }   /* в закрашенных ячейках (есть аварии) — белое число, как в заголовке «Полная» */
 
 /* --- подсказка --- */
 .tooltip {

@@ -1,9 +1,10 @@
-// view.js — всё отображение страницы: шкала степеней (по ней выбирают степень) и карточки метрик
-// (слева кольцо, легенда и полосы сервисов, справа таблица). Что посчитать — берём из calc.js.
+// view.js — всё отображение страницы: карточки метрик (слева кольцо, легенда и полосы сервисов,
+// справа таблица). Что посчитать — берём из calc.js.
+// Степень выбирают нажатием на её название в шапке таблицы, на сектор кольца или строку легенды.
 //
 // Что здесь происходит, по порядку:
 //   1. Помощники: SVG-элементы, формат чисел, склонения, чип сервиса.
-//   2. render() — перерисовать страницу: выбор на шкале степеней и карточки метрик.
+//   2. render() — перерисовать страницу: карточки метрик; выбор степени.
 //   3. Всплывающая подсказка.
 //   4. Кольцевая диаграмма (SVG) с легендой.
 //   5. Полосы по сервисам.
@@ -11,14 +12,14 @@
 //
 // Сторонних библиотек нет — всё рисуется обычными HTML- и SVG-элементами.
 // Тексты из данных вставляются только через textContent: так они не могут превратиться в HTML-код.
-// Отсюда другие модули берут: render и renderStepenScale.
+// Отсюда другие модули берут: render.
 // Название сервиса в таблице — кнопка-чип: по нажатию открывается окно его степеней (service-dialog.js).
 
-import { STEPEN_BOUNDS, STEPEN_NAMES, STEPEN_COLORS } from './config.js';
+import { STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
 import {
     buildServiceStats, rowsOfSelectedProduct, getStepenRanges, maxShownCount, formatRange, sum,
-    buildTableColumns, buildTableRows, stepenOf,
+    buildTableColumns, buildTableRows, stepenOf, stepenColumnSpans, sumByStepen,
 } from './calc.js';
 import { byId, createElement } from './dom.js';
 import { openServiceDialog } from './service-dialog.js';
@@ -97,13 +98,11 @@ function createServiceChip(serviceId, name, isCustom, cell) {
 // 2. render() — перерисовать страницу
 // ============================================================================
 
-/** Перерисовать всё, что зависит от данных и выбора: подсветку шкалы и карточки метрик */
+/** Перерисовать всё, что зависит от данных и выбора: карточки метрик */
 export function render() {
     const ranges = getStepenRanges();
     const rows = rowsOfSelectedProduct();
     const metrics = state.data.metrics;
-
-    markSelectedStepen();
 
     // для каждой метрики — сколько аварий каждой степени у каждого сервиса
     const statsByMetric = [];
@@ -135,46 +134,12 @@ export function render() {
 }
 
 /**
- * Шкала степеней над карточками — рисуется один раз при запуске, границы постоянные (STEPEN_BOUNDS):
- * цветные отрезки с названием степени и деления 0, 10, … 100 под шкалой.
- * Отрезок — кнопка: клик выбирает степень, повторный клик снимает выбор (снова видны все степени).
+ * Клик по названию степени в шапке таблицы, сектору кольца или строке легенды: выбрать степень —
+ * остальные приглушаются; повторный клик — снять выбор (снова видны все степени)
  */
-export function renderStepenScale() {
-    const ranges = getStepenRanges();
-
-    // отрезки шкалы: ширина — по размеру диапазона степени, фон — её цвет с лёгким градиентом
-    for (let i = 0; i < ranges.length; i++) {
-        const color = ranges[i].color;
-        const segment = createElement('button', { type: 'button', title: formatRange(ranges[i]) }, byId('range-track'));
-        // ширина — расстояние между границами (20, 30, 30, 20), чтобы стыки цветов пришлись на деления 20, 50, 80
-        segment.style.flexGrow = ranges[i].to - (i > 0 ? ranges[i - 1].to : 0);
-        segment.style.background = `linear-gradient(90deg, color-mix(in srgb, ${color} 86%, #fff), ${color})`;
-        segment.style.color = ranges[i].textColor;   // чёрный или белый текст — что лучше читается на этом цвете
-        createElement('b', {}, segment, ranges[i].name);   // название степени — жирным, по центру отрезка
-        segment.addEventListener('click', function () {
-            toggleStepen(i);
-        });
-    }
-
-    // деления под шкалой: 0, 10, 20, … 100
-    for (let value = 0; value <= 100; value += 10) {
-        createElement('span', { style: `left: ${value}%` }, byId('range-scale'), String(value));
-    }
-}
-
-/** Клик по отрезку шкалы, сектору кольца или строке легенды: выбрать степень; повторный клик — снять выбор */
 function toggleStepen(i) {
     state.selectedStepen = state.selectedStepen === i ? null : i;
     render();
-}
-
-/** Подсветить выбор на шкале: выбранная степень яркая, остальные приглушены (как секторы кольца) */
-function markSelectedStepen() {
-    const segments = byId('range-track').children;
-    for (let i = 0; i < segments.length; i++) {
-        segments[i].classList.toggle('dimmed', isDimmed(i));
-        segments[i].setAttribute('aria-pressed', String(state.selectedStepen === i));
-    }
 }
 
 /**
@@ -544,7 +509,8 @@ function renderServiceBars(host, stats, maxCount) {
 // 6. Таблица «как в Excel»
 // ============================================================================
 
-// Самая узкая допустимая колонка диапазона, в пикселях: шире самой длинной подписи («91–100»)
+// Самая узкая допустимая колонка диапазона, в пикселях: чтобы в объединённую ячейку степени
+// шириной в две колонки влезало её название («Минимальная», «Полная»)
 const MIN_RANGE_COLUMN_WIDTH = 56;
 
 /**
@@ -565,21 +531,27 @@ function groupBy(rows, getKey) {
 
 /**
  * Таблица одной метрики: строка «Всего», под ней продукты с подытогом, в каждом продукте — его операции и сервисы.
+ * Над колонками диапазонов — объединённые ячейки степеней («Минимальная» над 0–10 и 11–20 и т.д.).
+ * В строках сервисов — число аварий в каждом диапазоне; в строках «Всего» и продуктов — итог по каждой степени
+ * в такой же объединённой ячейке, с учётом своих границ у отдельных сервисов.
  * Рисует внутрь host, заменяя то, что там было.
  *   metric — метрика, для которой строим таблицу
- *   columns — колонки диапазонов [{ from: 21, to: 30, stepen: 1 }], stepen — номер степени колонки.
+ *   columns — колонки диапазонов [{ from: 21, to: 30, stepen: 1 }], stepen — номер степени колонки по умолчанию.
  *             Колонки общие для всех метрик, поэтому таблицы разных метрик совпадают столбец в столбец
  *   rows — сервисы; rows[].columnCounts[id метрики] — сколько аварий попало в каждую колонку,
  *          rows[].bounds — границы степеней сервиса (свои или по умолчанию), rows[].isCustom — свои ли они
  */
 function renderTable(host, metric, columns, rows) {
-    // ячейки с числами для одной строки: counts[i] — сколько аварий в колонке i.
-    // bounds — границы степеней строки. У сервиса со своими границами колонка может относиться
-    // не к той степени, что в заголовке, — тогда ячейка красится цветом его степени
+    const spans = stepenColumnSpans(columns);   // сколько колонок под каждой степенью: [2, 3, 3, 2]
+
+    // ячейки строки сервиса: counts[i] — сколько аварий в колонке i.
+    // bounds — границы степеней сервиса. У сервиса со своими границами колонка может относиться
+    // не к той степени, что в заголовке, — тогда ячейка красится цветом его степени.
+    // Подписей диапазонов в заголовке нет — диапазон ячейки виден во всплывающей подсказке
     function addValueCells(tr, counts, bounds) {
         for (let i = 0; i < counts.length; i++) {
             const stepen = stepenOf(columns[i].to, bounds);
-            const cell = createElement('td', {}, tr, numberFormat.format(counts[i]));
+            const cell = createElement('td', { title: `${columnTitle(columns[i])}%` }, tr, numberFormat.format(counts[i]));
             paintCell(cell, counts[i], STEPEN_COLORS[stepen]);
             if (isDimmed(stepen)) {
                 cell.classList.add('dimmed');
@@ -587,22 +559,34 @@ function renderTable(host, metric, columns, rows) {
         }
     }
 
+    // ячейки строки итога («Всего» или продукт): по одной объединённой ячейке на степень,
+    // шириной во все её колонки; stepenCounts[k] — сколько аварий степени k
+    function addStepenCells(tr, stepenCounts) {
+        for (let k = 0; k < stepenCounts.length; k++) {
+            const cell = createElement('td', { colspan: spans[k] }, tr, numberFormat.format(stepenCounts[k]));
+            paintCell(cell, stepenCounts[k], STEPEN_COLORS[k]);
+            if (isDimmed(k)) {
+                cell.classList.add('dimmed');
+            }
+        }
+    }
+
     const table = createElement('table', { class: 'grid' });
     addColumnGroup(table, columns.length);
-    addHeader(table, columns);
+    addHeader(table, spans);
 
     const body = createElement('tbody', {}, table);
 
     // строка «Всего» — по всем показанным сервисам
     const totalRow = createElement('tr', { class: 'sum' }, body);
     createElement('td', { colspan: 3, class: 'name' }, totalRow, 'Всего');
-    addValueCells(totalRow, sumByColumn(rows, metric, columns.length), STEPEN_BOUNDS);
+    addStepenCells(totalRow, sumByStepen(rows, metric));
 
     for (const productRows of groupBy(rows, function (row) { return row.product_id; })) {
         // строка продукта с подытогом по его сервисам
         const productRow = createElement('tr', { class: 'sum' }, body);
         createElement('td', { colspan: 3, class: 'name' }, productRow, productRows[0].product);
-        addValueCells(productRow, sumByColumn(productRows, metric, columns.length), STEPEN_BOUNDS);
+        addStepenCells(productRow, sumByStepen(productRows, metric));
 
         // сервисы группы. Номер и название операции пишем один раз — в ячейку высотой во все её сервисы (rowspan)
         for (const operationRows of groupBy(productRows, function (row) { return row.operation_id; })) {
@@ -630,41 +614,41 @@ function addColumnGroup(table, valueColumnCount) {
     for (let i = 0; i < 3; i++) {
         createElement('col', { class: 'name-col' }, colgroup);       // №, операция, сервис
     }
-    createElement('col', { span: valueColumnCount }, colgroup);       // колонки диапазонов — одним описанием на все
+    createElement('col', { span: valueColumnCount, class: 'range-cols' }, colgroup);   // колонки диапазонов — одним описанием на все
 }
 
-/** Строка заголовков: «№ / Операция / Сервис» и подписи диапазонов на цвете своей степени */
-function addHeader(table, columns) {
+/**
+ * Строка заголовков: «№ / Операция / Сервис» и над колонками диапазонов — названия степеней:
+ * одна объединённая ячейка на степень на её цвете («Минимальная» над 0–10 и 11–20 и т.д.).
+ * Название степени — кнопка: клик выбирает степень (остальные приглушаются), повторный клик снимает выбор.
+ *   spans — сколько колонок под каждой степенью: [2, 3, 3, 2]
+ */
+function addHeader(table, spans) {
     const head = createElement('tr', {}, createElement('thead', {}, table));
     for (const title of ['№', 'Операция', 'Сервис']) {
         createElement('th', { class: 'name' }, head, title);
     }
-    for (const column of columns) {
-        const cell = createElement('th', { class: 'range-column' }, head, columnTitle(column));
-        cell.style.backgroundColor = STEPEN_COLORS[column.stepen].color;
-        cell.style.color = STEPEN_COLORS[column.stepen].textColor;
-        if (isDimmed(column.stepen)) {
+    const ranges = getStepenRanges();   // диапазоны степеней по умолчанию — для подсказки «0–20%»
+    for (let k = 0; k < spans.length; k++) {
+        const cell = createElement('th', { colspan: spans[k], class: 'stepen-head' }, head);
+        cell.style.backgroundColor = STEPEN_COLORS[k].color;   // текст на нём — белый (style.css, .stepen-head)
+        if (isDimmed(k)) {
             cell.classList.add('dimmed');
         }
+        const button = createElement('button', {
+            type: 'button',
+            title: formatRange(ranges[k]),
+            'aria-pressed': String(state.selectedStepen === k),   // выбрана ли эта степень — для экранного диктора
+        }, cell, STEPEN_NAMES[k]);
+        button.addEventListener('click', function () {
+            toggleStepen(k);
+        });
     }
 }
 
 /** Подпись колонки: «21–30», а если колонка шириной в один процент — просто «31» */
 function columnTitle(column) {
     return column.from === column.to ? String(column.from) : `${column.from}–${column.to}`;
-}
-
-/** Сумма по колонкам для нескольких сервисов: сколько аварий у них всех вместе в каждой колонке */
-function sumByColumn(rows, metric, columnCount) {
-    const totals = [];
-    for (let i = 0; i < columnCount; i++) {
-        let total = 0;
-        for (const row of rows) {
-            total = total + row.columnCounts[metric.id][i];
-        }
-        totals.push(total);
-    }
-    return totals;
 }
 
 /**
@@ -705,8 +689,9 @@ function equalizeColumns(table) {
     }
 
     // таблица не уже, чем названия + колонки диапазонов по MIN_RANGE_COLUMN_WIDTH + промежутки между ячейками
-    // (промежутков на один больше, чем колонок: колонок диапазонов valueCount и ещё 3 колонки названий)
-    const valueCount = table.querySelectorAll('thead th.range-column').length;
+    // (промежутков на один больше, чем колонок: колонок диапазонов valueCount и ещё 3 колонки названий).
+    // Сколько колонок диапазонов — берём из их описания <col span="10">: заголовки над ними объединены по степеням
+    const valueCount = table.querySelector('col.range-cols').span;
     const cssSpacing = parseFloat(getComputedStyle(table).borderSpacing);   // промежуток между ячейками из CSS
     const spacing = Number.isNaN(cssSpacing) ? 0 : cssSpacing;
     table.style.minWidth = `${sum(nameWidths) + valueCount * MIN_RANGE_COLUMN_WIDTH + (valueCount + 4) * spacing}px`;

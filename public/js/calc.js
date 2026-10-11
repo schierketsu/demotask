@@ -7,7 +7,7 @@
 // Что здесь, по порядку:
 //   1. Степени: к какой степени относится процент или диапазон, подписи степеней, подсчёт аварий по степеням.
 //   2. Сервисы: фильтр по продукту, статистика по сервисам для полос и их общий масштаб.
-//   3. Таблица: колонки (диапазоны по 10% из базы) и строки с количеством аварий в них.
+//   3. Таблица: колонки (диапазоны по 10% из базы), строки с количеством аварий в них и итоги по степеням.
 
 import { STEPEN_BOUNDS, STEPEN_NAMES, STEPEN_COLORS } from './config.js';
 import { state } from './state.js';
@@ -195,4 +195,33 @@ export function buildTableRows(rows) {
         });
     }
     return result;
+}
+
+/**
+ * Сколько колонок-диапазонов у каждой степени (по границам по умолчанию): [2, 3, 3, 2].
+ * Это ширина объединённых ячеек степеней — в заголовке таблицы и в строках «Всего» и продуктов
+ */
+export function stepenColumnSpans(columns) {
+    const spans = [0, 0, 0, 0];
+    for (const column of columns) {
+        spans[column.stepen] = spans[column.stepen] + 1;
+    }
+    return spans;
+}
+
+/**
+ * Сколько аварий каждой степени у нескольких сервисов вместе — для строк «Всего» и продуктов: [14, 10, 1, 4].
+ * Каждый сервис считается по своим границам: если сервису задали свои, его аварии попадают в итог той степени,
+ * к которой они относятся у него, — поэтому итог совпадает с кольцом.
+ *   tableRows — строки из buildTableRows, metric — метрика
+ */
+export function sumByStepen(tableRows, metric) {
+    const totals = [0, 0, 0, 0];
+    for (const row of tableRows) {
+        const counts = countByStepen(row.columnCounts[metric.id], row.bounds);
+        for (let i = 0; i < 4; i++) {
+            totals[i] = totals[i] + counts[i];
+        }
+    }
+    return totals;
 }
