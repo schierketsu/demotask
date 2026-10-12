@@ -1,13 +1,13 @@
 @font-face {
     font-family: "Styrene A LC";
-    src: url("assets/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
+    src: url("/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
     font-weight: 400;
     font-display: swap;
 }
 
 @font-face {
     font-family: "Styrene A LC";
-    src: url("assets/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
+    src: url("/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
     font-weight: 700;
     font-display: swap;
 }
@@ -54,9 +54,8 @@ button { cursor: pointer; }
 select, input[type="date"] { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg); }
 select:focus-visible, input[type="date"]:focus-visible { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none; }
 input[type="date"] { margin-left: 6px; }
-/* две даты диапазона «с … по …» — рядом; display: flex перебил бы hidden, поэтому скрытие задаём явно */
+/* две даты диапазона «с … по …» — рядом */
 .range-field { display: flex; gap: 12px; align-items: center; }
-.range-field[hidden] { display: none; }
 
 /* верхняя строка с фильтром продукта */
 .filters { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 0 0 16px; }
@@ -165,7 +164,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .grid tbody td.name { white-space: normal; min-width: 150px; }
 .grid tr.sum td.name { white-space: nowrap; }
 /* колонки №, операции и сервиса — по содержимому (1% — «как можно уже»); равную ширину колонкам диапазонов
-   задаёт equalizeColumns в view.js */
+   задаёт equalizeColumns в DetailTable.jsx */
 .grid th.name { width: 1%; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
 /* строка продукта — целиком как ячейка с его названием: серый фон и обычный тёмный текст, без цветов степеней */
@@ -264,7 +263,6 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .bounds-column + .bounds-column { border-left: 1px solid var(--line); }
 .bounds-field { display: flex; align-items: center; gap: 10px; margin-top: 16px; min-height: 48px; }   /* 48 — высота поля */
 .bounds-fixed { width: 4.2em; font-variant-numeric: tabular-nums; }   /* «100» у последней включённой вместо поля */
-.bounds-field [hidden] { display: none; }   /* .stepper — flex, без этого hidden его бы не спрятал */
 /* название степени — кнопка-«таблетка»: нажал — степень отключена, ещё раз — включена */
 .bounds-toggle {
     display: inline-flex; align-items: center; padding: 6px 14px;

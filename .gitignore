@@ -1,1 +1,6 @@
 МУ.docx
+
+# сборка и библиотеки — появляются при npm install / npm run build и запуске Python, в git не нужны
+node_modules/
+dist/
+__pycache__/

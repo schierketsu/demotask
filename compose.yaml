@@ -1,6 +1,6 @@
 services:
   db:
-    build: .
+    build: ./docker/db   # postgres:18 с русской локалью
     restart: always
     shm_size: 128mb #размер общей памяти контейнера
     environment:
@@ -32,8 +32,10 @@ services:
     ports:
       - "${ADMINER_HOST_PORT:-8080}:8080"
 
-  php:
-    build: ./docker/php
+  # API на Python (FastAPI + uvicorn): backend/app. Код попадает в образ при сборке —
+  # после правок: docker compose up -d --build backend
+  backend:
+    build: ./backend
     restart: always
     environment:
       DB_HOST: db
@@ -41,22 +43,19 @@ services:
       DB_NAME: testdb
       DB_USER: postgres_admin
       DB_PASSWORD: example
-    volumes:
-      - ./src:/var/www/src:ro
     depends_on:
       db:
         condition: service_healthy
 
-  nginx:
-    image: nginx:alpine
+  # страница на React: Node собирает её из frontend/src, nginx раздаёт сборку и передаёт /api/* в backend.
+  # После правок: docker compose up -d --build frontend
+  frontend:
+    build: ./frontend
     restart: always
     ports:
       - "${WEB_HOST_PORT:-8000}:80"
-    volumes:
-      - ./public:/var/www/public:ro
-      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - php
+      - backend
 
 volumes:
   postgres_data:
