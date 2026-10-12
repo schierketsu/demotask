@@ -7,6 +7,7 @@ import {
     boundsOf, formatRange, getStepenRanges, hasOwnBounds, stepenColumnSpans, stepenOf, sum, sumByStepen,
 } from '../calc.js';
 import { classNames, groupBy, numberFormat } from '../helpers.js';
+import { stepenTooltip, useTooltip } from './Tooltip.jsx';
 
 // Самая узкая допустимая колонка диапазона, в пикселях: чтобы в объединённую ячейку степени
 // шириной в две колонки влезало её название («Минимальная», «Полная»)
@@ -29,6 +30,7 @@ export default function DetailTable({
     metric, rows, columns, buckets, serviceBounds, selectedStepen, onToggleStepen, onOpenService, isOpen,
 }) {
     const table = useRef(null);   // ссылка на <table> на странице — для equalizeColumns
+    const tooltipProps = useTooltip();
 
     // после каждой перерисовки, пока таблицу видно, выравниваем колонки диапазонов —
     // до того, как браузер покажет её на экране (поэтому useLayoutEffect, а не useEffect)
@@ -40,6 +42,9 @@ export default function DetailTable({
 
     const spans = stepenColumnSpans(columns);   // сколько колонок под каждой степенью: [2, 3, 3, 2]
     const ranges = getStepenRanges();           // диапазоны степеней по умолчанию — для подсказки «0–20%» в шапке
+    // сколько аварий каждой степени у всех показанных сервисов — для строки «Всего» и подсказок в шапке
+    const totalCounts = sumByStepen(rows, metric, buckets, serviceBounds);
+    const total = sum(totalCounts);
 
     /** Приглушать ли степень k: да, если выбрана какая-то другая степень */
     function isDimmed(k) {
@@ -93,20 +98,23 @@ export default function DetailTable({
             </colgroup>
 
             {/* шапка: «№ / Операция / Сервис» и над колонками диапазонов — названия степеней на их цвете.
-                Название степени — кнопка: клик выбирает степень (остальные приглушаются), повторный клик снимает выбор */}
+                Название степени — кнопка: клик выбирает степень (остальные приглушаются), повторный клик снимает выбор.
+                Подсказка — как у сектора кольца: «Частичная · 21–50%» и «10 аварий · 34 %» */}
             <thead>
                 <tr>
                     <th className="name">№</th>
                     <th className="name">Операция</th>
                     <th className="name">Сервис</th>
                     {spans.map(function (span, k) {
+                        const part = { name: STEPEN_NAMES[k], rangeLabel: formatRange(ranges[k]), count: totalCounts[k], color: STEPEN_COLORS[k].color };
                         return (
                             <th
                                 key={k} colSpan={span} className={classNames('stepen-head', isDimmed(k) && 'dimmed')}
                                 style={{ backgroundColor: STEPEN_COLORS[k].color }}   // текст на нём — белый (style.css, .stepen-head)
+                                {...tooltipProps(function () { return stepenTooltip(part, total); })}
                             >
                                 <button
-                                    type="button" title={formatRange(ranges[k])}
+                                    type="button"
                                     aria-pressed={selectedStepen === k}   // выбрана ли эта степень — для экранного диктора
                                     onClick={function () { onToggleStepen(k); }}
                                 >{STEPEN_NAMES[k]}</button>
@@ -120,7 +128,7 @@ export default function DetailTable({
                 {/* строка «Всего» — по всем показанным сервисам */}
                 <tr className="sum">
                     <td colSpan={3} className="name">Всего</td>
-                    {stepenCells(sumByStepen(rows, metric, buckets, serviceBounds), true)}
+                    {stepenCells(totalCounts, true)}
                 </tr>
 
                 {groupBy(rows, function (row) { return row.product_id; }).map(function (productRows) {
@@ -144,6 +152,7 @@ export default function DetailTable({
                                             {i === 0 && <td rowSpan={operationRows.length} className="name">{row.operation}</td>}
                                             <ServiceCell
                                                 name={row.service} isCustom={isCustom}
+                                                bounds={boundsOf(serviceBounds, row.service_id)}
                                                 onOpen={function () { onOpenService(row.service_id); }}
                                             />
                                             {valueCells(row.counts[metric.id], boundsOf(serviceBounds, row.service_id))}
@@ -165,13 +174,31 @@ export default function DetailTable({
  * (класс custom) — видно, что он изменён.
  * Нажатие ловим на всей ячейке, а не только на кнопке: в высокой строке кнопка занимает лишь середину ячейки.
  * С клавиатуры тоже работает — Enter на кнопке «всплывает» до ячейки.
+ * Подсказка — границы степеней сервиса (свои или по умолчанию; отключённые — «отключена») и что будет по нажатию.
+ *   bounds — границы степеней сервиса
  */
-function ServiceCell({ name, isCustom, onOpen }) {
+function ServiceCell({ name, isCustom, bounds, onOpen }) {
+    const tooltipProps = useTooltip();
+    const tooltip = tooltipProps(function () {
+        const rows = getStepenRanges(bounds).map(function (range) {
+            return { label: `${range.name} · ${range.unused ? 'отключена' : formatRange(range)}`, color: range.color };
+        });
+        return {
+            title: isCustom ? 'Свои границы степеней' : 'Границы степеней по умолчанию',
+            rows: rows,
+            note: isCustom ? 'Нажмите, чтобы изменить' : 'Нажмите, чтобы задать свои границы',
+        };
+    });
+
+    function open() {
+        tooltipProps.hide();   // откроется окно — подсказка над ним не нужна
+        onOpen();
+    }
+
     return (
-        <td className={classNames('name service-cell', isCustom && 'custom')} onClick={onOpen}>
+        <td className={classNames('name service-cell', isCustom && 'custom')} onClick={open} {...tooltip}>
             <button
                 type="button" className={classNames('service-chip', isCustom && 'custom')} aria-haspopup="dialog"
-                title={isCustom ? 'Свои границы степеней — нажмите, чтобы изменить' : 'Нажмите, чтобы задать свои границы степеней'}
             >{name}</button>
         </td>
     );

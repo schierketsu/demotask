@@ -29,7 +29,8 @@ import { TooltipProvider } from './components/Tooltip.jsx';
 import './style.css';
 
 createRoot(document.getElementById('root')).render(
-    // StrictMode — при разработке (npm run dev) React дополнительно проверяет компоненты на ошибки
+//1 .document.getElementById('root') вернет <div>...</div> из index.html
+//2 createRoot((...).render(...) — React сам нарисует App в этом <div> и будет обновлять его при изменении состояния
     <StrictMode>
         <TooltipProvider>
             <App />

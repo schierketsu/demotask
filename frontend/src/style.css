@@ -140,7 +140,9 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 /* строки легенды не переносятся; не помещается рядом с кольцом — легенда целиком уходит под него */
 .donut-legend { flex: 1; min-width: max-content; display: grid; gap: 2px; }
 .legend-row {
-    display: grid; grid-template-columns: 10px 1fr 2em 3.4em; gap: 8px; align-items: center; white-space: nowrap;
+    /* квадратик — слева, число и доля — справа; середина (1fr) растягивается на всю ширину строки,
+       поэтому подсветка при наведении и выборе не остаётся пустой справа */
+    display: grid; grid-template-columns: 10px 1fr 3.4em; gap: 8px; align-items: center; white-space: nowrap;
     padding: 6px 8px; border: 0; border-radius: 8px; background: none; text-align: left;
     font-variant-numeric: tabular-nums; transition: opacity .15s;
 }
@@ -191,6 +193,8 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .tooltip-row { display: flex; align-items: center; gap: 6px; }
 .tooltip-key { width: 12px; height: 3px; border-radius: 1px; }
 .tooltip-label { color: var(--text-2); }
+/* пояснение внизу подсказки («Нажмите, чтобы изменить») — отделено тонкой линией */
+.tooltip-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--text-2); }
 
 /* --- чип сервиса в таблице: ячейка с названием сервиса — кнопка, по нажатию открывается окно сервиса.
    Выглядит как остальные ячейки таблицы: фон на самой ячейке (серый, как у «Всего»), те же скругления и отступы,

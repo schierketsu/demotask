@@ -6,15 +6,15 @@
 //   <path {...tooltipProps(() => ({ title: 'Частичная', rows: [{ value: 3, label: 'аварии', color: '#fbc22c' }] }))} />
 
 import { createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
-import { numberFormat } from '../helpers.js';
+import { accidentsWord, numberFormat, percentFormat } from '../helpers.js';
 
 // Контекст — способ передать значение всем компонентам внутри провайдера без передачи через каждый уровень.
-// Здесь передаём функцию setTip: показать подсказку ({ title, rows, x, y }) или убрать (null)
+// Здесь передаём функцию setTip: показать подсказку ({ title, rows, note, x, y }) или убрать (null)
 const TooltipContext = createContext(null);
 
 /** Обёртка над страницей: хранит подсказку и рисует её поверх всего */
 export function TooltipProvider({ children }) {
-    const [tip, setTip] = useState(null);   // что показать: { title, rows, x, y } или null — ничего
+    const [tip, setTip] = useState(null);   // что показать: { title, rows, note, x, y } или null — ничего
 
     // при движении мыши меняется только tip — children (сама страница) при этом не перерисовываются
     return (
@@ -27,12 +27,15 @@ export function TooltipProvider({ children }) {
 
 /**
  * Подсказка для элементов: возвращает функцию, которая по getContent() даёт обработчики для элемента.
- * getContent() вызывается при каждом движении мыши и возвращает { title, rows }:
- *   rows — строки подсказки: [{ value: 3, label: 'аварии · 10 %', color: '#ff7d2e' }]
+ * getContent() вызывается при каждом движении мыши и возвращает { title, rows, note }:
+ *   rows — строки подсказки: [{ value: 3, label: 'аварии · 10 %', color: '#ff7d2e' }];
+ *          value можно не указывать — тогда в строке только цветная метка и подпись
+ *   note — пояснение мелким серым текстом внизу (необязательно): «Нажмите, чтобы изменить»
+ * tooltipProps.hide() — убрать подсказку сразу (например, когда по нажатию открывается окно)
  */
 export function useTooltip() {
     const setTip = useContext(TooltipContext);
-    return function tooltipProps(getContent) {
+    function tooltipProps(getContent) {
         return {
             onPointerMove(event) {
                 setTip({ ...getContent(), x: event.clientX, y: event.clientY });
@@ -41,6 +44,23 @@ export function useTooltip() {
                 setTip(null);
             },
         };
+    }
+    tooltipProps.hide = function () {
+        setTip(null);
+    };
+    return tooltipProps;
+}
+
+/**
+ * Подсказка степени — одна и та же у сектора кольца, строки легенды и названия степени в шапке таблицы:
+ * «Частичная · 21–50%» и строка «10 аварий · 34 %».
+ *   part — { name, rangeLabel, count, color }; total — всего аварий (0 — долю не посчитать, её не пишем)
+ */
+export function stepenTooltip(part, total) {
+    const share = total > 0 ? ` · ${percentFormat.format(part.count / total)}` : '';
+    return {
+        title: `${part.name} · ${part.rangeLabel}`,
+        rows: [{ value: part.count, label: accidentsWord(part.count) + share, color: part.color }],
     };
 }
 
@@ -77,13 +97,14 @@ function TooltipBox({ tip }) {
             {tip.rows.map(function (row, i) {
                 return (
                     <div className="tooltip-row" key={i}>
-                        {/* цветная метка, число и подпись */}
+                        {/* цветная метка, число (если есть) и подпись */}
                         <span className="tooltip-key" style={{ background: row.color }} />
-                        <span>{numberFormat.format(row.value)}</span>
+                        {row.value !== undefined && <span>{numberFormat.format(row.value)}</span>}
                         <span className="tooltip-label">{row.label}</span>
                     </div>
                 );
             })}
+            {tip.note && <div className="tooltip-note">{tip.note}</div>}
         </div>
     );
 }

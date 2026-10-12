@@ -3,7 +3,7 @@
 
 import { sum } from '../calc.js';
 import { accidentsWord, classNames, numberFormat, percentFormat } from '../helpers.js';
-import { useTooltip } from './Tooltip.jsx';
+import { stepenTooltip, useTooltip } from './Tooltip.jsx';
 
 // Размеры кольца в пикселях
 const DONUT_SIZE = 180;                  // ширина и высота рисунка
@@ -114,10 +114,7 @@ export default function Donut({ parts, selectedStepen, onToggleStepen }) {
                 {buildSectors(parts, total).map(function (sector) {
                     const part = parts[sector.index];
                     // наведение — подсказка «Частичная · 21–50%: 10 аварий · 34 %»
-                    const tooltip = tooltipProps(function () {
-                        const label = `${accidentsWord(part.count)} · ${percentFormat.format(part.count / total)}`;
-                        return { title: `${part.name} · ${part.rangeLabel}`, rows: [{ value: part.count, label: label, color: part.color }] };
-                    });
+                    const tooltip = tooltipProps(function () { return stepenTooltip(part, total); });
                     return (
                         <g key={sector.index}>
                             <path
@@ -141,22 +138,22 @@ export default function Donut({ parts, selectedStepen, onToggleStepen }) {
                 <text x={DONUT_CENTER} y={DONUT_CENTER + 24} className="donut-label">{centerCaption}</text>
             </svg>
 
-            {/* легенда справа от кольца: по строке на степень — цвет, диапазон, сколько аварий и какая это доля */}
+            {/* легенда справа от кольца: по строке на степень — цвет, сколько аварий и какая это доля */}
             <div className="donut-legend">
                 {parts.map(function (part, i) {
                     const share = total > 0 ? percentFormat.format(part.count / total) : '—';   // аварий нет вообще — долю не посчитать
-                    // название степени в строке не пишем — оно во всплывающей подсказке и для экранного диктора
+                    // название и диапазон степени в строке не пишем — они во всплывающей подсказке (такой же,
+                    // как у сектора кольца) и для экранного диктора
                     return (
                         <button
                             key={i} type="button"
                             className={classNames('legend-row', isDimmed(i) && 'dimmed')}
                             aria-pressed={selectedStepen === i}
-                            title={part.name}
                             aria-label={`${part.name}, ${part.rangeLabel}: ${numberFormat.format(part.count)}, ${share}`}
                             onClick={function () { onToggleStepen(i); }}
+                            {...tooltipProps(function () { return stepenTooltip(part, total); })}
                         >
                             <span className="color-key" style={{ background: part.color }} />
-                            <span className="muted">{part.rangeLabel}</span>
                             <span className="legend-value">{numberFormat.format(part.count)}</span>
                             <span className="muted legend-percent">{share}</span>
                         </button>
