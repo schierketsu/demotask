@@ -75,7 +75,8 @@ function isDimmed(index) {
 
 /**
  * Чип сервиса — название сервиса кнопкой в ячейке таблицы cell: по нажатию открывается окно его степеней деградации.
- * У сервиса со своими границами степеней у чипа чёрная обводка (класс custom) — видно, что он изменён.
+ * У чипа пунктирная обводка — его можно нажать; у сервиса со своими границами степеней она сплошная чёрная
+ * (класс custom) — видно, что он изменён.
  * После сохранения в окне страница перерисовывается (render).
  * Нажатие ловим на всей ячейке, а не только на кнопке: в высокой строке кнопка занимает лишь середину ячейки.
  * С клавиатуры тоже работает — Enter на кнопке «всплывает» до ячейки.
@@ -167,7 +168,6 @@ function buildMetricCard(metric, stats, ranges, maxCount, columns, tableRows) {
             rangeLabel: formatRange(ranges[stepen]),
             count: total,
             color: ranges[stepen].color,
-            textColor: ranges[stepen].textColor,
         });
     }
     renderDonut(createElement('div', {}, summary), donutParts);
@@ -303,9 +303,9 @@ function sectorPath(startAngle, endAngle) {
 /**
  * Кольцевая диаграмма с легендой справа. Рисует внутрь host, заменяя то, что там было.
  *   parts — части кольца, по одной на степень:
- *           [{ name: 'Частичная', letter: 'Ч', rangeLabel: '21–50%', count: 10, color: '#fbc22c', textColor: '#0b0b0b' }, …]
- *           name — название (для подсказок), letter — буква на секторе, rangeLabel — диапазон, count — сколько аварий,
- *           color — цвет сектора, textColor — цвет буквы на нём
+ *           [{ name: 'Частичная', letter: 'Ч', rangeLabel: '21–50%', count: 10, color: '#fbc22c' }, …]
+ *           name — название (для подсказок), letter — буква на секторе (всегда белая), rangeLabel — диапазон,
+ *           count — сколько аварий, color — цвет сектора
  * Клик по сектору или строке легенды выбирает степень (toggleStepen).
  */
 function renderDonut(host, parts) {
@@ -376,8 +376,7 @@ function drawSectors(svg, parts, total) {
                 class: 'slice-letter',
                 x: DONUT_CENTER + middleRadius * Math.sin(middleAngle),
                 y: DONUT_CENTER - middleRadius * Math.cos(middleAngle) + 4,   // +4 — опустить на полвысоты буквы
-                fill: part.textColor,   // чёрная или белая буква — что лучше читается на цвете сектора
-            }, svg);
+            }, svg);   // цвет буквы — белый, задан в style.css (.slice-letter)
             letter.textContent = part.letter;
             if (isDimmed(i)) {
                 letter.classList.add('dimmed');
@@ -560,11 +559,15 @@ function renderTable(host, metric, columns, rows) {
     }
 
     // ячейки строки итога («Всего» или продукт): по одной объединённой ячейке на степень,
-    // шириной во все её колонки; stepenCounts[k] — сколько аварий степени k
-    function addStepenCells(tr, stepenCounts) {
+    // шириной во все её колонки; stepenCounts[k] — сколько аварий степени k.
+    // isColored — красить ли ячейки цветами степеней: у «Всего» да, у продукта нет — его строка целиком
+    // такая же, как ячейка с названием продукта (фон и цвет текста — в style.css, tr.product)
+    function addStepenCells(tr, stepenCounts, isColored) {
         for (let k = 0; k < stepenCounts.length; k++) {
             const cell = createElement('td', { colspan: spans[k] }, tr, numberFormat.format(stepenCounts[k]));
-            paintCell(cell, stepenCounts[k], STEPEN_COLORS[k]);
+            if (isColored) {
+                paintCell(cell, stepenCounts[k], STEPEN_COLORS[k]);
+            }
             if (isDimmed(k)) {
                 cell.classList.add('dimmed');
             }
@@ -580,13 +583,13 @@ function renderTable(host, metric, columns, rows) {
     // строка «Всего» — по всем показанным сервисам
     const totalRow = createElement('tr', { class: 'sum' }, body);
     createElement('td', { colspan: 3, class: 'name' }, totalRow, 'Всего');
-    addStepenCells(totalRow, sumByStepen(rows, metric));
+    addStepenCells(totalRow, sumByStepen(rows, metric), true);
 
     for (const productRows of groupBy(rows, function (row) { return row.product_id; })) {
-        // строка продукта с подытогом по его сервисам
-        const productRow = createElement('tr', { class: 'sum' }, body);
+        // строка продукта с подытогом по его сервисам — целиком серая, как ячейка с названием продукта
+        const productRow = createElement('tr', { class: 'sum product' }, body);
         createElement('td', { colspan: 3, class: 'name' }, productRow, productRows[0].product);
-        addStepenCells(productRow, sumByStepen(productRows, metric));
+        addStepenCells(productRow, sumByStepen(productRows, metric), false);
 
         // сервисы группы. Номер и название операции пишем один раз — в ячейку высотой во все её сервисы (rowspan)
         for (const operationRows of groupBy(productRows, function (row) { return row.operation_id; })) {
@@ -597,7 +600,8 @@ function renderTable(host, metric, columns, rows) {
                     createElement('td', { rowspan: operationRows.length }, tr, String(row.operation_num));
                     createElement('td', { rowspan: operationRows.length, class: 'name' }, tr, row.operation);
                 }
-                // ячейка сервиса целиком — чип: серая, как «Всего»; у сервиса со своими границами — с чёрной обводкой
+                // ячейка сервиса целиком — чип: серая, как «Всего», с пунктирной обводкой;
+                // у сервиса со своими границами обводка сплошная чёрная
                 const serviceCell = createElement('td', { class: row.isCustom ? 'name service-cell custom' : 'name service-cell' }, tr);
                 createServiceChip(row.service_id, row.service, row.isCustom, serviceCell);
                 addValueCells(tr, row.columnCounts[metric.id], row.bounds);

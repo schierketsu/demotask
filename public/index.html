@@ -11,11 +11,28 @@
 </head>
 <body>
 <div class="filters">
-    <label>Месяц
+    <!-- период: сначала способ выбора, рядом — поле этого способа (остальные два скрыты, переключает app.js) -->
+    <label>Период
+        <select id="period-type">
+            <option value="month">Месяц</option>
+            <option value="year">Год</option>
+            <option value="range">Диапазон дат</option>
+        </select>
+    </label>
+    <label id="month-field">Месяц
         <select id="month-filter">
             <!-- месяцы с сервера, app.js -->
         </select>
     </label>
+    <label id="year-field" hidden>Год
+        <select id="year-filter">
+            <!-- годы с сервера, app.js -->
+        </select>
+    </label>
+    <div class="range-field" id="range-field" hidden>
+        <label>с <input type="date" id="range-from"></label>
+        <label>по <input type="date" id="range-to"></label>
+    </div>
     <label>Продукт
         <select id="product-filter">
             <option value="">Все</option> 

@@ -34,7 +34,8 @@ export function hasOwnBounds(serviceId) {
 
 /**
  * Границы степеней сервиса: свои, если их задали в окне сервиса (state.serviceBounds), иначе общие по умолчанию.
- * Например: [30, 60, 90] — минимальная до 30%, частичная до 60%, значительная до 90%
+ * Например: [30, 60, 90] — минимальная до 30%, частичная до 60%, значительная до 90%, дальше полная.
+ * Границы могут совпадать — тогда степень между ними не используется: [100, 100, 100] — только минимальная
  */
 export function boundsOf(row) {
     if (hasOwnBounds(row.service_id)) {
@@ -58,24 +59,29 @@ export function stepenOf(percent, bounds = STEPEN_BOUNDS) {
 
 /**
  * Диапазоны четырёх степеней при границах bounds (по умолчанию — общих) — для подписей: название, первая буква,
- * диапазон процентов, цвет и цвет текста на нём.
- * Например: { name: 'Частичная', letter: 'Ч', from: 21, to: 50, color: '#fbc22c', textColor: '#0b0b0b' }
+ * диапазон процентов и цвет, а также start и end — где степень начинается и кончается на шкале
+ * 0–100 (для цветных зон) и unused — степень отключена в окне сервиса: её граница совпала с предыдущей, места ей
+ * не осталось, аварий в ней не будет.
+ * Например: { name: 'Частичная', letter: 'Ч', from: 21, to: 50, start: 20, end: 50, unused: false, color: '#fbc22c' }
  */
 export function getStepenRanges(bounds = STEPEN_BOUNDS) {
     const result = [];
 
     for (let i = 0; i < 4; i++) {
-        // начало диапазона: у первой степени 0, у остальных — следующий процент после предыдущей границы
-        const from = i > 0 ? bounds[i - 1] + 1 : 0;
-        // конец диапазона: у последней степени 100, у остальных — своя граница
-        const to = i < 3 ? bounds[i] : 100;
+        // где степень на шкале: от предыдущей границы (у первой — от 0) до своей (у последней — до 100)
+        const start = i > 0 ? bounds[i - 1] : 0;
+        const end = i < 3 ? bounds[i] : 100;
         result.push({
             name: STEPEN_NAMES[i],
             letter: STEPEN_NAMES[i].charAt(0),
-            from: from,
-            to: to,
+            // в подписи: со следующего процента после предыдущей границы; если степень начинается с самого
+            // начала шкалы (первая или все до неё не используются) — от 0
+            from: start > 0 ? start + 1 : 0,
+            to: end,
+            start: start,
+            end: end,
+            unused: start === end,
             color: STEPEN_COLORS[i].color,
-            textColor: STEPEN_COLORS[i].textColor,
         });
     }
     return result;

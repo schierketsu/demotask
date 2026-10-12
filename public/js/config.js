@@ -8,16 +8,15 @@ export const STEPEN_NAMES = ['Минимальная', 'Частичная', 'З
 /**
  * Цвета степеней — постоянные, по одному набору на степень:
  *   color               — основной цвет: кольцо, полосы сервисов, заголовки колонок таблицы, кружки и точки в окне сервиса
- *   textColor           — цвет текста поверх основного цвета (чёрный или белый — что лучше читается):
- *                         буквы на кольце и числа в кружках окна сервиса. В таблице текст на цвете всегда белый (style.css)
  *   cellBackground      — фон ячейки таблицы, где есть аварии: основной цвет, высветленный на четверть
  *   emptyCellBackground — фон ячейки таблицы без аварий: основной цвет с прозрачностью 16 %
+ * Текст поверх цвета степени — везде белый (style.css): числа в таблице, буквы на кольце, числа в кружках окна сервиса.
  */
 export const STEPEN_COLORS = [
-    { color: '#4bd163', textColor: '#0b0b0b', cellBackground: '#78dd8a', emptyCellBackground: 'rgba(75, 209, 99, 0.16)' },    // минимальная — зелёный
-    { color: '#fbc22c', textColor: '#0b0b0b', cellBackground: '#fcd161', emptyCellBackground: 'rgba(251, 194, 44, 0.16)' },   // частичная — жёлтый
-    { color: '#ff7d2e', textColor: '#0b0b0b', cellBackground: '#ff9e62', emptyCellBackground: 'rgba(255, 125, 46, 0.16)' },   // значительная — оранжевый
-    { color: '#dc2f3a', textColor: '#ffffff', cellBackground: '#e5636b', emptyCellBackground: 'rgba(220, 47, 58, 0.16)' },    // полная — красный
+    { color: '#4bd163', cellBackground: '#78dd8a', emptyCellBackground: 'rgba(75, 209, 99, 0.16)' },    // минимальная — зелёный
+    { color: '#fbc22c', cellBackground: '#fcd161', emptyCellBackground: 'rgba(251, 194, 44, 0.16)' },   // частичная — жёлтый
+    { color: '#ff7d2e', cellBackground: '#ff9e62', emptyCellBackground: 'rgba(255, 125, 46, 0.16)' },   // значительная — оранжевый
+    { color: '#dc2f3a', cellBackground: '#e5636b', emptyCellBackground: 'rgba(220, 47, 58, 0.16)' },    // полная — красный
 ];
 
 /**

@@ -51,8 +51,12 @@ button, select, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 
 /* Список — «таблетка» с тонкой рамкой; активный — тёмной рамкой */
-select { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg); }
-select:focus-visible { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none; }
+select, input[type="date"] { padding: 4px 12px; border: 1px solid var(--line); border-radius: 999px; background-color: var(--bg); }
+select:focus-visible, input[type="date"]:focus-visible { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); outline: none; }
+input[type="date"] { margin-left: 6px; }
+/* две даты диапазона «с … по …» — рядом; display: flex перебил бы hidden, поэтому скрытие задаём явно */
+.range-field { display: flex; gap: 12px; align-items: center; }
+.range-field[hidden] { display: none; }
 
 /* верхняя строка с фильтром продукта */
 .filters { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin: 0 0 16px; }
@@ -130,7 +134,8 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .donut .slice { stroke: var(--bg); stroke-width: 2px; cursor: pointer; transition: opacity .15s; }
 .donut .slice.full { stroke: none; }
 .donut .slice:hover { opacity: .85; }
-.donut .slice-letter { font-size: var(--fs-s); text-anchor: middle; pointer-events: none; }
+/* буква степени на секторе — белая на любом цвете; жирная, чтобы читалась и на светлом жёлтом */
+.donut .slice-letter { font-size: var(--fs-s); font-weight: 700; fill: #fff; text-anchor: middle; pointer-events: none; }
 .donut-value { font-size: var(--fs-l); font-weight: 700; fill: var(--text); text-anchor: middle; }
 .donut-label { font-size: var(--fs-s); fill: var(--text-2); text-anchor: middle; }
 /* строки легенды не переносятся; не помещается рядом с кольцом — легенда целиком уходит под него */
@@ -163,6 +168,8 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
    задаёт equalizeColumns в view.js */
 .grid th.name { width: 1%; }
 .grid th.name, .grid tr.sum td.name { background: var(--wash); }
+/* строка продукта — целиком как ячейка с его названием: серый фон и обычный тёмный текст, без цветов степеней */
+.grid tr.product td { background: var(--wash); color: var(--text); }
 /* названия степеней в шапке — кнопки на всю объединённую ячейку: клик выбирает степень, повторный — снимает выбор */
 .grid th.stepen-head { padding: 0; color: #fff; }   /* белый текст на цвете степени — как у «Полной» */
 .grid th.stepen-head button {
@@ -189,15 +196,20 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 /* --- чип сервиса в таблице: ячейка с названием сервиса — кнопка, по нажатию открывается окно сервиса.
    Выглядит как остальные ячейки таблицы: фон на самой ячейке (серый, как у «Всего»), те же скругления и отступы,
    а кнопка внутри прозрачная и растянута на всю ширину ячейки --- */
-.grid td.service-cell { padding: 0; background: var(--wash); cursor: pointer; transition: opacity .15s, background-color .15s; }
+/* обводка по краю ячейки внутрь, 2px: по умолчанию — серый пунктир (чип можно нажать), у сервиса со своими границами —
+   сплошная чёрная (.custom). Обе — outline, а не border: они не занимают места, ячейка не меняет размер */
+.grid td.service-cell {
+    padding: 0; background: var(--wash); cursor: pointer; transition: opacity .15s, background-color .15s;
+    outline: 2px dashed #b9b9b4; outline-offset: -2px;
+}
 .grid td.service-cell:hover { background: #ebebe8; }   /* подсветка — на всю ячейку, не только на кнопку */
 .service-chip {
     display: block; width: 100%; padding: 10px 14px; border: 0; border-radius: 4px; background: none;
     text-align: left;
 }
 .service-chip:focus-visible { outline: 2px solid var(--custom); outline-offset: -2px; }
-/* у сервиса свои границы степеней — чёрная обводка по краю ячейки внутрь; фон и текст — как у остальных */
-.grid td.service-cell.custom { box-shadow: inset 0 0 0 2px var(--text); }
+/* у сервиса свои границы степеней — та же обводка, но сплошная чёрная; фон и текст — как у остальных */
+.grid td.service-cell.custom { outline-style: solid; outline-color: var(--text); }
 
 /* --- окно сервиса (<dialog>): «Индивидуальные границы деградации» --- */
 .dialog {
@@ -230,15 +242,17 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 /* цветная точка перед названием степени */
 .stepen-dot { display: inline-block; width: 12px; height: 12px; margin-right: 8px; border-radius: 50%; vertical-align: -1px; }
 
-/* аварии сервиса: слева название метрики, справа ось с засечками каждые 20% и кружки на ней.
+/* аварии сервиса: слева название метрики, справа ось — цветные зоны степеней и кружки на них.
    Кружок стоит посередине диапазона (0–10 → 5%, 21–30 → 25% ширины оси), в нём — сколько аварий в диапазоне */
 .case-tracks { display: grid; grid-template-columns: max-content 1fr; align-items: center; gap: 4px 28px; padding-right: 12px; }
 .case-track { position: relative; height: 40px; }
-.case-track::before { content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: #d5d8de; }
-.case-tick { position: absolute; top: calc(50% - 6px); width: 1px; height: 12px; background: #d5d8de; }
+/* отсечка над подписью процента: белая, толстая и короткая, растёт от нижнего края фона (bottom 4px — как у зон) */
+.case-tick { position: absolute; bottom: 4px; width: 2px; height: 6px; background: #fff; transform: translateX(-50%); }
+/* бледная зона степени под кружками: left и width ставит JS по границам из окна */
+.case-zone { position: absolute; top: 4px; bottom: 4px; transition: left .15s, width .15s; }
 .case-bubble {
     position: absolute; top: 50%; transform: translate(-50%, -50%);
-    min-width: 32px; height: 32px; padding: 0 6px; border-radius: 16px;
+    min-width: 32px; height: 32px; padding: 0 6px; border-radius: 16px; color: #fff;   /* белое число на цвете степени */
     display: flex; align-items: center; justify-content: center; font-weight: 700; font-variant-numeric: tabular-nums;
 }
 .case-axis { position: relative; height: 18px; }
@@ -248,7 +262,21 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .bounds-columns { display: grid; grid-template-columns: repeat(4, 1fr); }
 .bounds-column { display: grid; align-content: start; justify-items: center; gap: 4px; padding: 0 12px; text-align: center; }
 .bounds-column + .bounds-column { border-left: 1px solid var(--line); }
-.bounds-field { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
+.bounds-field { display: flex; align-items: center; gap: 10px; margin-top: 16px; min-height: 48px; }   /* 48 — высота поля */
+.bounds-fixed { width: 4.2em; font-variant-numeric: tabular-nums; }   /* «100» у последней включённой вместо поля */
+.bounds-field [hidden] { display: none; }   /* .stepper — flex, без этого hidden его бы не спрятал */
+/* название степени — кнопка-«таблетка»: нажал — степень отключена, ещё раз — включена */
+.bounds-toggle {
+    display: inline-flex; align-items: center; padding: 6px 14px;
+    border: 1px solid var(--line); border-radius: 999px; background: var(--bg); transition: border-color .15s, color .15s;
+}
+.bounds-toggle:hover:not(:disabled) { border-color: var(--text-2); }
+.bounds-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.bounds-toggle:disabled { cursor: default; }   /* последнюю оставшуюся степень отключить нельзя */
+/* отключённая степень: пунктирная рамка, бледное зачёркнутое название, поля нет (место остаётся, колонки не прыгают) */
+.bounds-column.off .bounds-toggle { border-style: dashed; color: var(--text-2); text-decoration: line-through; }
+.bounds-column.off .stepen-dot { opacity: .35; }
+.bounds-column.off .bounds-field { visibility: hidden; }
 /* поле с числом и своими стрелками ▲▼ справа; стандартные стрелки поля прячем */
 .stepper { display: flex; align-items: stretch; height: 48px; border: 1px solid #d5d8de; border-radius: 10px; overflow: hidden; }
 .stepper:focus-within { border-color: var(--text); }
@@ -268,22 +296,7 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .stepper-up::before { transform: translate(-50%, -25%) rotate(-135deg); }
 .stepper-down::before { transform: translate(-50%, -75%) rotate(45deg); }
 
-/* «Изменение количества аварий»: табличка в рамке со скруглёнными углами */
-.changes-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
-/* fixed — колонки степеней строго одинаковой ширины, а не по содержимому; первая (названия метрик) — 32% */
-.changes { width: 100%; table-layout: fixed; border-collapse: collapse; font-variant-numeric: tabular-nums; }
-.changes tr > :first-child { width: 32%; }
-.changes th, .changes td { padding: 12px 14px; border-left: 1px solid var(--line); border-top: 1px solid var(--line); text-align: center; white-space: nowrap; }
-.changes tr > :first-child { border-left: 0; text-align: left; }
-.changes thead th { border-top: 0; background: #f6f7f9; font-weight: 400; font-size: var(--fs-s); color: var(--text-2); }
-.changes thead .stepen-dot { margin-right: 0; }   /* в заголовке только точка — по центру колонки, без отступа под название */
-.changes tbody th { font-weight: 400; }
-/* изменение в скобках: больше стало — зелёным, меньше — красным */
-.change { margin-left: 6px; }
-.change.up { color: #15803d; }
-.change.down { color: #dc2626; }
-
-/* узкий экран: подписи метрик над осями, колонки границ по две в ряд, табличка прокручивается внутри рамки */
+/* узкий экран: подписи метрик над осями, колонки границ по две в ряд */
 @media (max-width: 640px) {
     .dialog-body { padding: 24px 20px 16px; }
     .dialog-foot { padding: 16px 20px; }
@@ -291,6 +304,4 @@ main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
     .bounds-columns { grid-template-columns: repeat(2, 1fr); row-gap: 20px; }
     .bounds-column:nth-child(3) { border-left: 0; }
     .stepper input { width: 3em; padding: 0 8px; }
-    .changes-wrap { overflow-x: auto; }
-    .changes { min-width: 520px; }   /* уже не сжимаем — табличка прокручивается внутри рамки */
 }

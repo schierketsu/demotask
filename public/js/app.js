@@ -14,7 +14,8 @@
 //   app.js загружает JSON за последний месяц → кладёт его в state → вызывает render() (view.js)
 //   render() берёт расчёты из calc.js и рисует страницу
 //   пользователь выбирает продукт или степень → state меняется → render() → страница обновилась
-//   пользователь выбирает месяц → app.js загружает JSON за этот месяц → state.data заменяется → render()
+//   пользователь выбирает период (месяц, год или диапазон дат) → app.js превращает его в две даты «с … по …»,
+//     загружает JSON за этот период → state.data заменяется → render()
 //   пользователь нажимает на чип сервиса → окно сервиса (service-dialog.js) → сохранил границы → render()
 //
 // Кто кого подключает (стрелки только вниз, по кругу никто никого не импортирует):
@@ -45,14 +46,49 @@ function formatMonth(month) {
     return `${MONTH_NAMES[monthNumber - 1]} ${year}`;
 }
 
+/** '2026-03-10' → «10.03.2026» */
+function formatDate(date) {
+    const [year, month, day] = date.split('-');
+    return `${day}.${month}.${year}`;
+}
+
 /**
- * Загрузить данные с сервера за месяц month («2026-10»); пустая строка — сервер отдаст последний месяц.
- * Если сервер ответил ошибкой — выбросить её с понятным текстом
+ * Первый и последний день выбранного периода { from, to } — их и отправляем на сервер.
+ * Месяц '2026-02' → 2026-02-01 … 2026-02-28; год '2026' → 2026-01-01 … 2026-12-31; диапазон — как ввели
  */
-async function loadData(month) {
-    // адрес запроса: '/api/data' или '/api/data?month=2026-10'
-    // encodeURIComponent — на всякий случай экранирует символы, которые нельзя писать в адресе как есть
-    const url = month === '' ? '/api/data' : `/api/data?month=${encodeURIComponent(month)}`;
+function periodDates() {
+    if (state.periodType === 'month') {
+        const [year, month] = state.selectedMonth.split('-').map(Number);
+        // день 0 следующего месяца — последний день нужного: new Date(2026, 2, 0) → 28 февраля 2026
+        // (месяцы в Date считаются с нуля, поэтому 2 — это март)
+        const lastDay = String(new Date(year, month, 0).getDate()).padStart(2, '0');   // 9 → '09'
+        return { from: `${state.selectedMonth}-01`, to: `${state.selectedMonth}-${lastDay}` };
+    }
+    if (state.periodType === 'year') {
+        return { from: `${state.selectedYear}-01-01`, to: `${state.selectedYear}-12-31` };
+    }
+    return { from: state.rangeFrom, to: state.rangeTo };
+}
+
+/** Период словами — для сообщения об ошибке: «октябрь 2026», «2026 год», «10.03.2026 — 15.04.2026» */
+function periodLabel() {
+    if (state.periodType === 'month') {
+        return formatMonth(state.selectedMonth).toLowerCase();
+    }
+    if (state.periodType === 'year') {
+        return `${state.selectedYear} год`;
+    }
+    return `${formatDate(state.rangeFrom)} — ${formatDate(state.rangeTo)}`;
+}
+
+/**
+ * Загрузить данные с сервера за период с from по to («2026-01-01», «2026-03-31», оба включительно);
+ * пустые строки — сервер отдаст последний месяц. Если сервер ответил ошибкой — выбросить её с понятным текстом
+ */
+async function loadData(from, to) {
+    // адрес запроса: '/api/data' или '/api/data?from=2026-01-01&to=2026-03-31'
+    // URLSearchParams собирает часть адреса после «?» и экранирует символы, которые нельзя писать в адресе как есть
+    const url = from === '' ? '/api/data' : `/api/data?${new URLSearchParams({ from: from, to: to })}`;
 
     // await — «дождаться»: ответ от сервера приходит не мгновенно
     // fetch — встроенная в браузер функция, которая делает HTTP-запрос на сервер и возвращает промис (обещание) с ответом
@@ -81,7 +117,7 @@ function showError(text) {
     error.hidden = false;
 }
 
-/** Убрать сообщение об ошибке (например, после успешной загрузки другого месяца) */
+/** Убрать сообщение об ошибке (например, после успешной загрузки другого периода) */
 function hideError() {
     byId('error').hidden = true;
 }
@@ -98,21 +134,44 @@ function setData(data) {
     state.data = data;
 }
 
-/** Выбрали другой месяц: загрузить его данные и перерисовать страницу (выбранные продукт и степень сохраняются) */
-async function changeMonth(month) {
-    state.selectedMonth = month;
+/** Показать поле выбранного способа (месяц, год или две даты), остальные два — скрыть */
+function showPeriodFields() {
+    byId('month-field').hidden = state.periodType !== 'month';
+    byId('year-field').hidden = state.periodType !== 'year';
+    byId('range-field').hidden = state.periodType !== 'range';
+}
 
-    let data;
-    try {
-        data = await loadData(month);
-    } catch (error) {
-        // страница остаётся с данными прошлого месяца, сверху — сообщение
-        showError(`Не удалось загрузить данные за ${formatMonth(month).toLowerCase()}: ${error.message}`);
+// период последнего запроса «2026-01-01|2026-03-31» — чтобы не показать устаревший ответ (см. changePeriod)
+let requestedPeriod = '';
+
+/**
+ * Поменялся период (способ выбора, месяц, год или дата диапазона): загрузить его данные и перерисовать страницу.
+ * Выбранные продукт, степень и свои границы сервисов сохраняются
+ */
+async function changePeriod() {
+    showPeriodFields();
+
+    const { from, to } = periodDates();
+    if (from === '' || to === '') {
+        return;   // в диапазоне стёрли дату — ждём, пока введут обе
+    }
+    if (from > to) {   // строки ГГГГ-ММ-ДД сравниваются как даты
+        showError('Начало периода позже его конца');
         return;
     }
 
-    // пока ждали ответ, могли успеть выбрать ещё один месяц — тогда этот ответ уже не нужен
-    if (month !== state.selectedMonth) {
+    requestedPeriod = `${from}|${to}`;
+    let data;
+    try {
+        data = await loadData(from, to);
+    } catch (error) {
+        // страница остаётся с данными прошлого периода, сверху — сообщение
+        showError(`Не удалось загрузить данные за ${periodLabel()}: ${error.message}`);
+        return;
+    }
+
+    // пока ждали ответ, могли успеть выбрать другой период — тогда этот ответ уже не нужен
+    if (requestedPeriod !== `${from}|${to}`) {
         return;
     }
     setData(data);
@@ -120,17 +179,15 @@ async function changeMonth(month) {
     render();
 }
 
-/** Старт: загрузить данные за последний месяц, заполнить фильтры и нарисовать страницу */
-async function init() {
-    let data;
-    try {
-        data = await loadData('');   // месяц не указываем — сервер отдаст последний
-    } catch (error) {
-        showError(`Не удалось загрузить данные: ${error.message}`);
-        return;
-    }
-    setData(data);
-    state.selectedMonth = data.month;   // какой месяц сервер отдал — тот и выбран
+/** Заполнить поля периода: списки месяцев и годов, календари диапазона; при изменении — changePeriod() */
+function initPeriodFields(data) {
+    // способ выбора периода: месяц, год или диапазон дат
+    const typeSelect = byId('period-type');
+    typeSelect.value = state.periodType;
+    typeSelect.addEventListener('change', function () {
+        state.periodType = typeSelect.value;
+        changePeriod();
+    });
 
     // выпадающий список «Месяц»: свежие месяцы сверху
     const monthSelect = byId('month-filter');
@@ -140,8 +197,59 @@ async function init() {
     }
     monthSelect.value = state.selectedMonth;
     monthSelect.addEventListener('change', function () {
-        changeMonth(monthSelect.value);
+        state.selectedMonth = monthSelect.value;
+        changePeriod();
     });
+
+    // выпадающий список «Год»: годы из списка месяцев, свежие сверху ('2026-10' → '2026', без повторов)
+    const yearSelect = byId('year-filter');
+    for (let i = data.months.length - 1; i >= 0; i--) {
+        const year = data.months[i].slice(0, 4);
+        if (yearSelect.querySelector(`option[value="${year}"]`) === null) {
+            createElement('option', { value: year }, yearSelect, year);
+        }
+    }
+    yearSelect.value = state.selectedYear;
+    yearSelect.addEventListener('change', function () {
+        state.selectedYear = yearSelect.value;
+        changePeriod();
+    });
+
+    // диапазон дат «с … по …»: календарь можно листать только в пределах дат, за которые есть случаи
+    for (const [id, field] of [['range-from', 'rangeFrom'], ['range-to', 'rangeTo']]) {
+        const input = byId(id);
+        input.min = data.minDate;
+        input.max = data.maxDate;
+        input.value = state[field];
+        input.addEventListener('change', function () {
+            state[field] = input.value;   // пустая строка, если дату стёрли
+            changePeriod();
+        });
+    }
+
+    showPeriodFields();
+}
+
+/** Старт: загрузить данные за последний месяц, заполнить фильтры и нарисовать страницу */
+async function init() {
+    let data;
+    try {
+        data = await loadData('', '');   // период не указываем — сервер отдаст последний месяц
+    } catch (error) {
+        showError(`Не удалось загрузить данные: ${error.message}`);
+        return;
+    }
+    setData(data);
+
+    // какой месяц сервер отдал — тот и выбран; год — этого месяца, диапазон — тот же месяц,
+    // но не дальше последней даты случаев (иначе календарь отметит дату как недопустимую)
+    state.selectedMonth = data.from.slice(0, 7);   // '2026-10-01' → '2026-10'
+    state.selectedYear = data.from.slice(0, 4);    // '2026-10-01' → '2026'
+    state.rangeFrom = data.from;
+    state.rangeTo = data.to < data.maxDate ? data.to : data.maxDate;
+    requestedPeriod = `${data.from}|${data.to}`;
+
+    initPeriodFields(data);
 
     // выпадающий список «Продукт»: по пункту на каждый продукт
     const productSelect = byId('product-filter');
