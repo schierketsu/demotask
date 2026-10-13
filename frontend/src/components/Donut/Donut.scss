@@ -2,7 +2,8 @@
 
 /* --- кольцевые диаграммы --- */
 .donut {
-    display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 12px;
+    /* легенда всегда справа от кольца, под него не переносится (ширину под неё даёт колонка сводки, MetricBlock.scss) */
+    display: flex; gap: 16px; align-items: center; margin-top: 12px;
 
     svg { flex: none; }
 
@@ -19,8 +20,8 @@
 .donut-value { font-size: var(--fs-l); font-weight: 700; fill: var(--text); text-anchor: middle; }
 .donut-label { font-size: var(--fs-s); fill: var(--text-2); text-anchor: middle; }
 
-/* строки легенды не переносятся; не помещается рядом с кольцом — легенда целиком уходит под него */
-.donut-legend { flex: 1; min-width: max-content; display: grid; gap: 2px; }
+/* легенда занимает всё место справа от кольца; строки легенды не переносятся */
+.donut-legend { flex: 1; min-width: 0; display: grid; gap: 2px; }
 .legend-row {
     /* квадратик — слева, число и доля — справа; середина (1fr) растягивается на всю ширину строки,
        поэтому подсветка при наведении и выборе не остаётся пустой справа */

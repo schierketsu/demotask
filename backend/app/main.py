@@ -58,7 +58,7 @@ def parse_date(value: str) -> date | None:
     except ValueError:
         return None
 
-
+#одна единственная ручка
 @app.get("/api/data")
 def get_data(
     # from — зарезервированное слово Python, поэтому в коде period_from, а в адресе — from (alias)
@@ -79,8 +79,8 @@ def get_data(
 
     try:
         # with — соединение закроется само, даже если запрос упадёт с ошибкой
-        with connect() as conn:
-            body = dashboard_data(conn, start, end)
+        with connect() as conn: #connect из db.py, возвращает psycopg.Connection
+            body = dashboard_data(conn, start, end) #dashboard_data из data.py, возвращает словарь с данными дашборда
     except NoCasesError:
         return respond(404, {"error": "В базе нет случаев деградации"})
     except psycopg.Error:
