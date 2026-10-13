@@ -1,0 +1,14 @@
+// ServiceBars.scss — стили полос по сервисам (ServiceBars.jsx).
+
+/* --- полосы по сервисам: название сервиса над полосой (длинные названия не влезают сбоку) --- */
+.bars-row { display: grid; gap: 2px; padding: 4px 0; }
+.bar-line { display: flex; align-items: center; gap: 6px; }
+.bar {
+    display: flex; gap: 2px; height: 12px; border-radius: 0 4px 4px 0; overflow: hidden; flex: none;
+
+    span { flex-basis: 0; min-width: 3px; }
+}
+.bar-value { font-size: var(--fs-s); color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+/* аварий нет ни у одного сервиса — вместо полос надпись «Аварий нет» */
+.empty { color: var(--text-2); padding: 12px 0; }

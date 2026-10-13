@@ -24,11 +24,12 @@
 // держит фокус внутри окна и закрывает его по Esc.
 
 import { Fragment, useEffect, useRef, useState } from 'react';
-import { STEPEN_BOUNDS, STEPEN_COLORS, STEPEN_NAMES } from '../config.js';
-import { getStepenRanges, stepenOf } from '../calc.js';
-import { BOUND_STEP, enabledStepens, sameBounds, setBound, toggleStepen } from '../bounds.js';
-import { accidentsWord, classNames } from '../helpers.js';
-import { useTooltip } from './Tooltip.jsx';
+import { STEPEN_BOUNDS, STEPEN_COLORS, STEPEN_NAMES } from '../../config.js';
+import { getStepenRanges, stepenOf } from '../../calc.js';
+import { BOUND_STEP, enabledStepens, sameBounds, setBound, toggleStepen } from '../../bounds.js';
+import { accidentsWord, classNames } from '../../helpers.js';
+import { useTooltip } from '../Tooltip/Tooltip.jsx';
+import './ServiceDialog.scss';   // стили этого компонента
 
 // Подписи процентов под шкалами — каждые 20%: 0, 20, 40, 60, 80, 100 (белые отсечки на шкалах — каждые BOUND_STEP)
 const AXIS_STEP = 20;

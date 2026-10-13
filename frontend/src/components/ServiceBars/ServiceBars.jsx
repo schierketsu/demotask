@@ -1,10 +1,11 @@
 // ServiceBars.jsx — полосы по сервисам: у каждого сервиса полоса из цветных кусков —
 // сколько у него аварий каждой степени.
 
-import { STEPEN_COLORS, STEPEN_NAMES } from '../config.js';
-import { shownCount } from '../calc.js';
-import { numberFormat } from '../helpers.js';
-import { useTooltip } from './Tooltip.jsx';
+import { STEPEN_COLORS, STEPEN_NAMES } from '../../config.js';
+import { shownCount } from '../../calc.js';
+import { numberFormat } from '../../helpers.js';
+import { useTooltip } from '../Tooltip/Tooltip.jsx';
+import './ServiceBars.scss';   // стили этого компонента
 
 /**
  * Полосы по сервисам.

@@ -2,12 +2,13 @@
 // в каждом продукте — его операции и сервисы.
 
 import { Fragment, useLayoutEffect, useRef } from 'react';
-import { STEPEN_COLORS, STEPEN_NAMES } from '../config.js';
+import { STEPEN_COLORS, STEPEN_NAMES } from '../../config.js';
 import {
     boundsOf, formatRange, getStepenRanges, hasOwnBounds, stepenColumnSpans, stepenOf, sum, sumByStepen,
-} from '../calc.js';
-import { accidentsWord, classNames, groupBy, numberFormat } from '../helpers.js';
-import { stepenTooltip, useTooltip } from './Tooltip.jsx';
+} from '../../calc.js';
+import { accidentsWord, classNames, groupBy, numberFormat } from '../../helpers.js';
+import { stepenTooltip, useTooltip } from '../Tooltip/Tooltip.jsx';
+import './DetailTable.scss';   // стили этого компонента
 
 // Самая узкая допустимая колонка диапазона, в пикселях: чтобы влезали числа в ячейках,
 // а в объединённую ячейку степени — её буква со стрелкой («М ⌄»)
@@ -73,7 +74,7 @@ export default function DetailTable({
     /**
      * Ячейки строки итога («Всего» или продукт): по одной объединённой ячейке на степень, шириной во все её колонки.
      * isColored — красить ли ячейки цветами степеней: у «Всего» да — бледный фон степени, число чёрное;
-     * у продукта нет — его строка целиком такая же, как ячейка с названием продукта (style.css, tr.product).
+     * у продукта нет — его строка целиком такая же, как ячейка с названием продукта (DetailTable.scss, tr.product).
      * title — заголовок подсказки ненулевой ячейки: «Всего» или название продукта
      */
     function stepenCells(stepenCounts, isColored, title) {
@@ -136,7 +137,7 @@ export default function DetailTable({
                         return (
                             <th
                                 key={k} colSpan={span} className={classNames('stepen-head', isDimmed(k) && 'dimmed')}
-                                // цвет степени: слева чуть светлее, справа — как есть; текст на нём — белый (style.css, .stepen-head)
+                                // цвет степени: слева чуть светлее, справа — как есть; текст на нём — белый (DetailTable.scss, .stepen-head)
                                 style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${color} 85%, #fff), ${color})` }}
                                 {...tooltipProps(function () { return stepenTooltip(part, total); })}
                             >

@@ -6,9 +6,10 @@
 // Выбранное в панели — белая «таблетка» с тенью.
 
 import { useEffect, useRef, useState } from 'react';
-import { MONTH_SHORT_NAMES } from '../config.js';
-import { formatDate, formatMonth } from '../period.js';
-import { classNames } from '../helpers.js';
+import { MONTH_SHORT_NAMES } from '../../config.js';
+import { formatDate, formatMonth } from '../../period.js';
+import { classNames } from '../../helpers.js';
+import './Filters.scss';   // стили этого компонента
 
 // Способы выбора периода: значение для period.type и подпись на переключателе
 const PERIOD_TYPES = [

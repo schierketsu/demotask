@@ -1,0 +1,35 @@
+// Donut.scss — стили кольцевой диаграммы и её легенды (Donut.jsx).
+
+/* --- кольцевые диаграммы --- */
+.donut {
+    display: flex; flex-wrap: wrap; gap: 20px; align-items: center; margin-top: 12px;
+
+    svg { flex: none; }
+
+    .slice {
+        stroke: var(--bg); stroke-width: 2px; cursor: pointer; transition: opacity .15s;
+
+        &.full { stroke: none; }
+        &:hover { opacity: .85; }
+    }
+
+    /* буква степени на секторе — белая на любом цвете; жирная, чтобы читалась и на светлом жёлтом */
+    .slice-letter { font-size: var(--fs-s); font-weight: 700; fill: #fff; text-anchor: middle; pointer-events: none; }
+}
+.donut-value { font-size: var(--fs-l); font-weight: 700; fill: var(--text); text-anchor: middle; }
+.donut-label { font-size: var(--fs-s); fill: var(--text-2); text-anchor: middle; }
+
+/* строки легенды не переносятся; не помещается рядом с кольцом — легенда целиком уходит под него */
+.donut-legend { flex: 1; min-width: max-content; display: grid; gap: 2px; }
+.legend-row {
+    /* квадратик — слева, число и доля — справа; середина (1fr) растягивается на всю ширину строки,
+       поэтому подсветка при наведении и выборе не остаётся пустой справа */
+    display: grid; grid-template-columns: 10px 1fr 3.4em; gap: 8px; align-items: center; white-space: nowrap;
+    padding: 6px 8px; border: 0; border-radius: 8px; background: none; text-align: left;
+    font-variant-numeric: tabular-nums; transition: opacity .15s;
+
+    &:hover, &[aria-pressed="true"] { background: var(--wash); }
+}
+.legend-value, .legend-percent { text-align: right; }
+/* цветной квадратик степени в строке легенды */
+.color-key { display: inline-block; width: 10px; height: 10px; border-radius: 3px; flex: none; }

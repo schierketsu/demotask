@@ -1,10 +1,11 @@
 // MetricBlock.jsx — раскрывающийся блок одной метрики: надпись («Без учета 5 минут») и под ней карточка —
 // слева сводка (кольцо, легенда, полосы сервисов), справа таблица.
 
-import { formatRange } from '../calc.js';
-import DetailTable from './DetailTable.jsx';
-import Donut from './Donut.jsx';
-import ServiceBars from './ServiceBars.jsx';
+import { formatRange } from '../../calc.js';
+import DetailTable from '../DetailTable/DetailTable.jsx';
+import Donut from '../Donut/Donut.jsx';
+import ServiceBars from '../ServiceBars/ServiceBars.jsx';
+import './MetricBlock.scss';   // стили этого компонента
 
 /**
  * Блок метрики на стандартных <details>/<summary>: браузер сам раскрывает и скрывает карточку по нажатию

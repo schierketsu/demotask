@@ -1,0 +1,71 @@
+// DetailTable.scss — стили таблицы «как в Excel» (DetailTable.jsx) и чипов сервисов в ней.
+
+@use '../../styles/mixins' as *;
+
+/* --- таблица: крупные ячейки со скруглёнными углами и просветами между ними --- */
+/* таблица на всю ширину своей карточки */
+.grid {
+    width: 100%; border-collapse: separate; border-spacing: 3px; font-size: 13px; font-variant-numeric: tabular-nums;
+
+    th, td { padding: 10px 6px; text-align: center; white-space: nowrap; border-radius: 6px; transition: opacity .15s; }
+    .name { text-align: left; padding: 10px 12px; }
+    /* длинные названия операций и сервисов переносятся на следующие строки, чтобы таблица помещалась без прокрутки */
+    tbody td.name { white-space: normal; min-width: 120px; }
+    tr.sum td.name { white-space: nowrap; }
+    /* колонки операции и сервиса — по содержимому (1% — «как можно уже»); равную ширину колонкам диапазонов
+       задаёт equalizeColumns в DetailTable.jsx */
+    th.name { width: 1%; font-size: 14px; }
+    th.name, tr.sum td.name { background: var(--wash); }
+    /* строка продукта — целиком как ячейка с его названием: серый фон и обычный тёмный текст, без цветов степеней */
+    tr.product td { background: var(--wash); color: var(--text); }
+
+    /* названия степеней в шапке — кнопки на всю объединённую ячейку: клик выбирает степень, повторный — снимает выбор.
+       Справа — стрелка ⌄; у выбранной степени она смотрит вверх */
+    th.stepen-head {
+        padding: 0; color: #fff;   /* белый текст на цвете степени */
+
+        button {
+            position: relative; display: block; width: 100%; padding: 12px 26px; border: 0; border-radius: 6px; background: none;
+            font-size: 14px; font-weight: 700; transition: opacity .15s;
+
+            &::after {
+                @include chevron(6px);
+                position: absolute; top: 50%; right: 13px;
+                transform: translateY(-70%) rotate(45deg); transition: transform .15s;
+            }
+            &[aria-pressed="true"]::after { transform: translateY(-20%) rotate(-135deg); }
+            &:hover { opacity: .8; }
+            &:focus-visible { @include focus-ring(-2px); }
+        }
+    }
+
+    /* жирные: строки «Всего» и продуктов целиком, в остальных — ненулевые числа; числа на цвете степени — тёмные */
+    tr.sum td, td.has-accidents { font-weight: 700; }
+    td.has-accidents { color: var(--text); }
+    tr.sum td { font-size: 14px; }
+}
+
+/* --- чип сервиса в таблице: ячейка с названием сервиса — кнопка, по нажатию открывается окно сервиса.
+   Выглядит как остальные ячейки таблицы: фон на самой ячейке (серый, как у «Всего»), те же скругления и отступы,
+   а кнопка внутри прозрачная и растянута на всю ширину ячейки --- */
+.grid td.service-cell {
+    padding: 0; background: var(--wash); cursor: pointer; transition: opacity .15s, background-color .15s;
+
+    &:hover { background: #ebebe8; }   /* подсветка — на всю ячейку, не только на кнопку */
+    /* у сервиса свои границы степеней — сплошная чёрная обводка по краю ячейки внутрь. Это outline, а не border:
+       он не занимает места, и ячейка не меняет размер */
+    &.custom { outline: 2px solid var(--text); outline-offset: -2px; }
+}
+/* колонка сервиса шире колонки операции: ей отдано место бывшей колонки «№» */
+.grid tbody td.service-cell { min-width: 150px; }
+.service-chip {
+    position: relative; display: block; width: 100%; padding: 10px 30px 10px 14px; border: 0; border-radius: 4px;
+    background: none; text-align: left;
+
+    /* справа внутри чипа — стрелка, как у названий степеней в шапке, но повёрнутая на 90°: смотрит влево, на текст */
+    &::after {
+        @include chevron(6px, 2px, var(--text-2));
+        position: absolute; top: 50%; right: 13px; transform: translateY(-50%) rotate(135deg);
+    }
+    &:focus-visible { @include focus-ring(-2px, var(--custom)); }
+}

@@ -1,9 +1,10 @@
 // Donut.jsx — кольцевая диаграмма с легендой: сколько аварий каждой степени.
 // Клик по сектору или строке легенды выбирает степень (остальные приглушаются), повторный — снимает выбор.
 
-import { sum } from '../calc.js';
-import { accidentsWord, classNames, numberFormat, percentFormat } from '../helpers.js';
-import { stepenTooltip, useTooltip } from './Tooltip.jsx';
+import { sum } from '../../calc.js';
+import { accidentsWord, classNames, numberFormat, percentFormat } from '../../helpers.js';
+import { stepenTooltip, useTooltip } from '../Tooltip/Tooltip.jsx';
+import './Donut.scss';   // стили этого компонента
 
 // Размеры кольца в пикселях
 const DONUT_SIZE = 180;                  // ширина и высота рисунка
@@ -123,7 +124,7 @@ export default function Donut({ parts, selectedStepen, onToggleStepen }) {
                                 onClick={function () { onToggleStepen(sector.index); }}
                                 {...tooltip}
                             />
-                            {/* цвет буквы — белый, задан в style.css (.slice-letter) */}
+                            {/* цвет буквы — белый, задан в Donut.scss (.slice-letter) */}
                             {sector.letterX !== null && (
                                 <text
                                     x={sector.letterX} y={sector.letterY}

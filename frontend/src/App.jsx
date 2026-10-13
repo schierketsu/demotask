@@ -11,9 +11,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadData } from './api.js';
 import { buildServiceStats, buildTableColumns, getStepenRanges, maxShownCount, rowsOfProduct, boundsOf } from './calc.js';
 import { initialPeriod, periodDates, periodLabel } from './period.js';
-import Filters from './components/Filters.jsx';
-import MetricBlock from './components/MetricBlock.jsx';
-import ServiceDialog from './components/ServiceDialog.jsx';
+import Filters from './components/Filters/Filters.jsx';
+import MetricBlock from './components/MetricBlock/MetricBlock.jsx';
+import ServiceDialog from './components/ServiceDialog/ServiceDialog.jsx';
 
 export default function App() {
     // Состояние страницы — всё, что она «помнит». useState возвращает значение и функцию, которая его меняет;

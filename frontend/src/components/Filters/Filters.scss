@@ -1,0 +1,134 @@
+// Filters.scss — стили панели фильтров (Filters.jsx): переключатель периода, навигатор, календари, выбор продукта.
+// & внутри блока — «этот же элемент»: &:hover в .option — это .option:hover.
+
+@use '../../styles/mixins' as *;
+
+/* --- панель фильтров над страницей: одной строкой на всю ширину, без рамки — края совпадают с блоками ниже.
+   Сетка из трёх колонок: левая половина (период и навигатор) | разделитель | правая половина (продукт).
+   Половины — по 1fr, поэтому разделитель ровно посередине панели; содержимое каждой половины прижато
+   к её левому краю, с тем же промежутком 16px от разделителя, что и между частями внутри левой половины --- */
+.toolbar {
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 16px;
+    margin: 0 0 16px; font-size: 14px;
+
+    /* уже ~1300px продукту в правой половине тесно — панель становится обычной строкой с переносом,
+       а разделители прячутся: при переносе черта повисла бы в конце строки */
+    @media (max-width: 1300px) {
+        display: flex; flex-wrap: wrap; gap: 10px 16px;
+    }
+}
+.toolbar-half { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.toolbar-divider {
+    width: 1px; height: 28px; background: var(--line);
+
+    @media (max-width: 1300px) {
+        display: none;
+    }
+}
+.toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.toolbar-label { color: var(--text); }
+
+/* переключатель «Месяц | Год | Диапазон»: серая дорожка, выбранный вариант — белая «таблетка» с тенью */
+.segmented {
+    display: flex; padding: 3px; border-radius: 12px; background: var(--wash);
+
+    button {
+        padding: 7px 14px; border: 0; border-radius: 9px; background: none; color: var(--text-2);
+
+        &:hover { color: var(--text); }
+        &[aria-checked="true"] { @include raised($border: false); color: var(--text); }
+        &:focus-visible { @include focus-ring; }
+    }
+}
+
+/* навигатор периода «‹ [Октябрь 2026 ⌄] ›» */
+.period-nav { display: flex; align-items: center; gap: 8px; }
+
+/* стрелки — квадратные кнопки в тонкой рамке, внутри уголок, повёрнутый влево или вправо;
+   на краю списка периодов — недоступны. plain — без рамки (стрелки года и месяца в календарях) */
+.nav-arrow {
+    position: relative; width: 36px; height: 36px; flex: none; padding: 0;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+
+    &.plain { border-color: transparent; }
+    &:hover:not(:disabled) { background: var(--wash); }
+    &:disabled { opacity: .3; cursor: default; }
+    &:focus-visible { @include focus-ring; }
+    &::before { @include chevron($color: var(--text)); position: absolute; top: 50%; left: 50%; }
+}
+.nav-prev::before { transform: translate(-30%, -50%) rotate(135deg); }
+.nav-next::before { transform: translate(-70%, -50%) rotate(-45deg); }
+
+/* название периода — белая «таблетка» с тенью и стрелкой ⌄: нажатие открывает календарь (стрелка смотрит вверх) */
+.period-picker-box { position: relative; }
+.period-title {
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 10em; height: 36px;
+    padding: 0 14px; border: 1px solid; border-radius: 10px; white-space: nowrap;
+    @include raised;
+
+    &::after { @include chevron; flex: none; transform: translateY(-25%) rotate(45deg); transition: transform .15s; }
+    &[aria-expanded="true"]::after { transform: translateY(25%) rotate(-135deg); }
+    &:focus-visible { @include focus-ring; }
+}
+
+/* календарь под названием периода: наверху год со стрелками, ниже сетка месяцев (или годов) по 3 в ряд */
+.picker {
+    position: absolute; top: calc(100% + 8px); left: 50%; z-index: 20; width: 300px; padding: 14px;
+    transform: translateX(-50%); border: 1px solid var(--line); border-radius: 14px; background: var(--bg);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, .14);
+}
+.picker-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.picker-year { font-size: 17px; font-weight: 700; }
+.picker-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+
+    button {
+        height: 38px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--wash);
+
+        &:hover:not(:disabled) { border-color: var(--text-2); }
+        /* выбранный — белый с тенью, как название периода; без данных — бледный и недоступный */
+        &[aria-pressed="true"] { @include raised; }
+        &:disabled { opacity: .35; cursor: default; }
+        &:focus-visible { @include focus-ring; }
+    }
+}
+
+/* календарь дней для диапазона: месяц со стрелками, дни недели, сетка 7 в ряд (неделя — с понедельника) */
+.range-picker { width: 320px; }
+.weekdays, .day-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.weekdays span { padding: 4px 0; font-size: 12px; color: var(--text-2); text-align: center; }
+.day {
+    height: 36px; padding: 0; border: 1px solid transparent; border-radius: 8px; background: none;
+    font-variant-numeric: tabular-nums;
+
+    &:hover:not(:disabled) { border-color: var(--line); }
+    &:focus-visible { @include focus-ring(1px); }
+    /* дни внутри диапазона — серая полоса; края — белые с тенью, как выбранное в других календарях */
+    &.in-range { background: var(--wash); }
+    &.edge { @include raised; }
+    /* за этот день данных нет — бледный и недоступный */
+    &:disabled { opacity: .3; cursor: default; }
+}
+
+/* продукт — кнопка с выбранным продуктом, такая же, как название периода; длинное название — с многоточием */
+.product-title { max-width: 280px; }
+.title-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+/* список продуктов — под кнопкой, по её левому краю (кнопка в правой половине панели — не уйдёт за край экрана) */
+.product-picker { left: 0; width: auto; min-width: 100%; max-width: 360px; padding: 8px; transform: none; }
+/* поиск — появляется, когда продуктов много */
+.picker-search {
+    width: 100%; margin-bottom: 6px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--wash);
+
+    &:focus-visible { border-color: var(--text); outline: none; }
+}
+/* сам список: если продуктов много, прокручивается внутри, а не растягивает страницу */
+.option-list { display: grid; gap: 2px; max-height: 320px; overflow-y: auto; }
+.option {
+    padding: 9px 12px; border: 0; border-radius: 8px; background: none; text-align: left; white-space: nowrap;
+
+    &:hover { background: var(--wash); }
+    /* выбранный продукт — жирный */
+    &[aria-selected="true"] { font-weight: 700; }
+    &:focus-visible { @include focus-ring; }
+}
+.option-empty { padding: 9px 12px; color: var(--text-2); }

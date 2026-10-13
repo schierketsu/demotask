@@ -1,0 +1,69 @@
+// global.scss — общие стили всей страницы: шрифты, цвета и размеры (CSS-переменные), базовые теги
+// и несколько общих классов. Подключается один раз — в main.jsx. Стили частей страницы лежат рядом
+// с их компонентами: components/Donut/Donut.scss и т.д., каждый компонент подключает свои сам.
+
+@font-face {
+    font-family: "Styrene A LC";
+    src: url("/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: "Styrene A LC";
+    src: url("/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
+    font-weight: 700;
+    font-display: swap;
+}
+
+:root {
+    --bg: #ffffff;
+    --text: #0b0b0b;
+    --text-2: #5c5b57;
+    --line: #e6e5e0;
+    --wash: #f4f4f2;
+
+    /* синий из фирменной палитры — рамка фокуса с клавиатуры у чипа сервиса (среди цветов степеней его нет) */
+    --custom: #2b73fe;
+
+    /* выделение выбранного в панели фильтров — белая «таблетка», чуть приподнятая тенью
+       (переключатель «Месяц | Год | Диапазон», название периода, месяц или год в календаре, продукт) */
+    --raised-shadow: 0 1px 3px rgba(15, 23, 42, .15);
+    --raised-border: #d5d8de;
+
+    /* три размера шрифта на всю страницу */
+    --fs-l: 24px;  /* заголовок страницы, число в центре диаграммы */
+    --fs-m: 15px;  /* заголовки блоков и основной текст */
+    --fs-s: 12px;  /* подписи, таблица */
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0 auto;
+    max-width: 1440px;
+    padding: 16px;
+    background: var(--bg);
+    color: var(--text);
+    font: 400 var(--fs-m)/1.4 "Styrene A LC", system-ui, sans-serif;
+}
+
+/* Bold — заголовки */
+h2, h3, th { font-weight: 700; }
+h2 { margin: 0 0 4px; font-size: var(--fs-m); }
+h3 { margin: 16px 0 6px; font-size: var(--fs-m); }
+p { margin: 0; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+
+/* общие классы: серый текст и приглушённое (не выбранная степень, когда выбрана другая) */
+.muted { color: var(--text-2); }
+.dimmed { opacity: .25; }
+
+/* сообщение об ошибке над страницей (App.jsx) */
+.error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid #ef3124; border-radius: 8px; }
+
+/* minmax(0, …) — чтобы широкая таблица прокручивалась внутри карточки, а не растягивала страницу */
+main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+/* блоки метрик друг под другом (App.jsx) */
+.metric-rows { display: grid; gap: 16px; }

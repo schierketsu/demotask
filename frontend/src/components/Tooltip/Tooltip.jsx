@@ -6,7 +6,8 @@
 //   <path {...tooltipProps(() => ({ title: 'Частичная', rows: [{ value: 3, label: 'аварии', color: '#fbc22c' }] }))} />
 
 import { createContext, useContext, useLayoutEffect, useRef, useState } from 'react';
-import { accidentsWord, numberFormat, percentFormat } from '../helpers.js';
+import { accidentsWord, numberFormat, percentFormat } from '../../helpers.js';
+import './Tooltip.scss';   // стили этого компонента
 
 // Контекст — способ передать значение всем компонентам внутри провайдера без передачи через каждый уровень.
 // Здесь передаём функцию setTip: показать подсказку ({ title, rows, note, x, y }) или убрать (null)

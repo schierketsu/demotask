@@ -1,0 +1,37 @@
+// _mixins.scss — общие куски стилей: подключаются в стилях компонентов строкой
+//   @use '../../styles/mixins' as *;
+// и вставляются через @include. Подчёркивание в начале имени файла — знак для Sass, что это «кусок»
+// (partial): сам по себе в отдельный CSS-файл он не собирается, только вставляется туда, где подключён.
+//
+// Цвета и размеры — по-прежнему CSS-переменные из global.scss (var(--text) и т.п.): их видно в браузере
+// и можно менять на лету, а миксины только избавляют от повторов.
+
+
+// Стрелка-уголок из двух рамок (правой и нижней) — для псевдоэлемента ::before или ::after.
+// Куда она смотрит, задаёт поворот у самого элемента:
+//   rotate(45deg) — вниз ⌄, rotate(-135deg) — вверх, rotate(135deg) — влево ‹, rotate(-45deg) — вправо ›
+//   $size — сторона уголка, $width — толщина линий, $color — цвет (по умолчанию — цвет текста рядом)
+@mixin chevron($size: 7px, $width: 2px, $color: currentColor) {
+    content: "";
+    width: $size;
+    height: $size;
+    border-right: $width solid $color;
+    border-bottom: $width solid $color;
+}
+
+// Выбранный элемент в панели фильтров и календарях — белая «таблетка», чуть приподнятая тенью, жирный текст.
+// $border — красить ли рамку (у элементов с рамкой), у элементов без рамки — только фон и тень
+@mixin raised($border: true) {
+    background: var(--bg);
+    box-shadow: var(--raised-shadow);
+    font-weight: 700;
+    @if $border {
+        border-color: var(--raised-border);
+    }
+}
+
+// Рамка фокуса с клавиатуры (Tab): видна только при управлении с клавиатуры, не при нажатии мышью
+@mixin focus-ring($offset: 2px, $color: var(--text)) {
+    outline: 2px solid $color;
+    outline-offset: $offset;
+}

@@ -8,14 +8,15 @@
 //   api.js     — запрос к серверу (GET /api/data)
 //   helpers.js — формат чисел, склонения, классы CSS, группировка строк
 //   App.jsx    — вся страница: её состояние и загрузка данных
-//   components/ — части страницы:
-//     Filters.jsx       — фильтры «Период» и «Продукт»
-//     MetricBlock.jsx   — раскрывающийся блок метрики: кольцо, полосы сервисов и таблица
-//     Donut.jsx         — кольцевая диаграмма с легендой
-//     ServiceBars.jsx   — полосы по сервисам
-//     DetailTable.jsx   — таблица «как в Excel»
-//     ServiceDialog.jsx — окно сервиса: свои границы степеней
-//     Tooltip.jsx       — всплывающая подсказка
+//   styles/    — общие стили: global.scss (шрифты, цвета, базовые теги) и _mixins.scss (повторяющиеся куски стилей)
+//   components/ — части страницы, у каждой своя папка: компонент .jsx и его стили .scss рядом
+//     Filters/       — фильтры «Период» и «Продукт»
+//     MetricBlock/   — раскрывающийся блок метрики: кольцо, полосы сервисов и таблица
+//     Donut/         — кольцевая диаграмма с легендой
+//     ServiceBars/   — полосы по сервисам
+//     DetailTable/   — таблица «как в Excel»
+//     ServiceDialog/ — окно сервиса: свои границы степеней
+//     Tooltip/       — всплывающая подсказка
 //
 // Как это работает (React):
 //   компонент — функция, которая по данным возвращает разметку (JSX). Состояние страницы (useState в App.jsx)
@@ -25,8 +26,8 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
-import { TooltipProvider } from './components/Tooltip.jsx';
-import './style.css';
+import { TooltipProvider } from './components/Tooltip/Tooltip.jsx';
+import './styles/global.scss';   // общие стили страницы; стили частей — рядом с компонентами
 
 createRoot(document.getElementById('root')).render(
 //1 .document.getElementById('root') вернет <div>...</div> из index.html

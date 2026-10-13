@@ -53,14 +53,14 @@ export function periodLabel(period) {
 
 /**
  * Период сразу после первой загрузки: какой месяц сервер отдал — тот и выбран; год — этого месяца,
- * диапазон — тот же месяц, но не дальше последней даты случаев (иначе календарь отметит дату как недопустимую)
+ * диапазон — все данные целиком: от первой до последней даты случаев (minDate … maxDate)
  */
 export function initialPeriod(data) {
     return {
         type: 'month',
         month: data.from.slice(0, 7),   // '2026-10-01' → '2026-10'
         year: data.from.slice(0, 4),    // '2026-10-01' → '2026'
-        rangeFrom: data.from,
-        rangeTo: data.to < data.maxDate ? data.to : data.maxDate,
+        rangeFrom: data.minDate,        // '2025-09-01'
+        rangeTo: data.maxDate,          // '2026-10-10'
     };
 }

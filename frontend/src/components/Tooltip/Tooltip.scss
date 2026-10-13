@@ -1,0 +1,16 @@
+// Tooltip.scss — стили всплывающей подсказки (Tooltip.jsx).
+
+/* --- подсказка --- */
+/* подсказка — popover (она в «верхнем слое», над окном сервиса тоже): inset, margin и overflow отменяют
+   стандартные стили popover — по центру экрана; место подсказки задаёт Tooltip.jsx через left и top */
+.tooltip {
+    position: fixed; inset: auto; margin: 0; overflow: visible; pointer-events: none; max-width: 280px;
+    background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, .12); padding: 8px 10px; font-size: var(--fs-s);
+}
+.tooltip-title { color: var(--text-2); margin-bottom: 4px; }
+.tooltip-row { display: flex; align-items: center; gap: 6px; }
+.tooltip-key { width: 12px; height: 3px; border-radius: 1px; }
+.tooltip-label { color: var(--text-2); }
+/* пояснение внизу подсказки («Нажмите, чтобы изменить») — отделено тонкой линией */
+.tooltip-note { margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--text-2); }
