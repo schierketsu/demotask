@@ -23,7 +23,8 @@ export default function App() {
     const [period, setPeriod] = useState(null);                // выбранный период (period.js); null — до первой загрузки
     const [productId, setProductId] = useState('');            // выбранный продукт; '' — все продукты
     const [selectedStepen, setSelectedStepen] = useState(null); // выбранная степень: 0..3, или null — «все»
-    const [openMetrics, setOpenMetrics] = useState({});        // какие блоки метрик раскрыты: { id метрики: true }
+    // какие блоки метрик раскрыты: { id метрики: true }. Сразу после загрузки раскрыт первый — «Без учета 5 минут»
+    const [openMetrics, setOpenMetrics] = useState({});
     // свои границы степеней у сервисов, заданные в окне сервиса: { id сервиса: [30, 60, 90] };
     // сервиса здесь нет — у него границы по умолчанию. Живут только на странице: на сервер не уходят,
     // при смене периода сохраняются, после перезагрузки страницы сбрасываются
@@ -44,6 +45,8 @@ export default function App() {
                     requestedPeriod.current = `${first.from}|${first.to}`;
                     setData(first);
                     setPeriod(initialPeriod(first));
+                    // по умолчанию раскрыт блок первой метрики — «Без учета 5 минут» (метрики идут по порядку id)
+                    setOpenMetrics({ [first.metrics[0].id]: true });
                 }
             } catch (loadError) {
                 if (!isCancelled) {

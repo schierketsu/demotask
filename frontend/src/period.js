@@ -17,7 +17,7 @@ export function formatMonth(month) {
 }
 
 /** '2026-03-10' → «10.03.2026» */
-function formatDate(date) {
+export function formatDate(date) {
     const [year, month, day] = date.split('-');
     return `${day}.${month}.${year}`;
 }

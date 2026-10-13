@@ -47,7 +47,7 @@ export default function MetricBlock({
 
                 {/* справа: детализация (таблица) */}
                 <div className="metric-detail">
-                    <div className="detail-title muted">Детализация</div>
+                    <h3 className="detail-title">Детализация</h3>
                     <div className="table-wrap">
                         <DetailTable
                             metric={metric} rows={rows} columns={columns} buckets={buckets} serviceBounds={serviceBounds}

@@ -6,12 +6,12 @@ import { STEPEN_COLORS, STEPEN_NAMES } from '../config.js';
 import {
     boundsOf, formatRange, getStepenRanges, hasOwnBounds, stepenColumnSpans, stepenOf, sum, sumByStepen,
 } from '../calc.js';
-import { classNames, groupBy, numberFormat } from '../helpers.js';
+import { accidentsWord, classNames, groupBy, numberFormat } from '../helpers.js';
 import { stepenTooltip, useTooltip } from './Tooltip.jsx';
 
-// Самая узкая допустимая колонка диапазона, в пикселях: чтобы в объединённую ячейку степени
-// шириной в две колонки влезало её название («Минимальная», «Полная»)
-const MIN_RANGE_COLUMN_WIDTH = 56;
+// Самая узкая допустимая колонка диапазона, в пикселях: чтобы влезали числа в ячейках,
+// а в объединённую ячейку степени — её буква со стрелкой («М ⌄»)
+const MIN_RANGE_COLUMN_WIDTH = 48;
 
 /**
  * Таблица одной метрики. Над колонками диапазонов — объединённые ячейки степеней («Минимальная» над 0–10 и 11–20 и т.д.).
@@ -52,15 +52,38 @@ export default function DetailTable({
     }
 
     /**
-     * Ячейки строки итога («Всего» или продукт): по одной объединённой ячейке на степень, шириной во все её колонки.
-     * isColored — красить ли ячейки цветами степеней: у «Всего» да, у продукта нет — его строка целиком
-     * такая же, как ячейка с названием продукта (фон и цвет текста — в style.css, tr.product)
+     * Подсказка ненулевой ячейки: заголовок (название сервиса, «Всего» или продукт) и строка с цветом степени —
+     * «2 аварии · 21–30% · частичная». У нулевой ячейки подсказки нет (пустой объект — никаких обработчиков)
+     *   rangeLabel — диапазон колонки «21–30%» или null (у итогов по степени диапазона нет)
      */
-    function stepenCells(stepenCounts, isColored) {
+    function cellTooltip(count, title, stepen, rangeLabel) {
+        if (!count) {
+            return {};
+        }
+        return tooltipProps(function () {
+            const parts = [accidentsWord(count)];
+            if (rangeLabel !== null) {
+                parts.push(rangeLabel);
+            }
+            parts.push(STEPEN_NAMES[stepen].toLowerCase());
+            return { title: title, rows: [{ value: count, label: parts.join(' · '), color: STEPEN_COLORS[stepen].color }] };
+        });
+    }
+
+    /**
+     * Ячейки строки итога («Всего» или продукт): по одной объединённой ячейке на степень, шириной во все её колонки.
+     * isColored — красить ли ячейки цветами степеней: у «Всего» да — бледный фон степени, число чёрное;
+     * у продукта нет — его строка целиком такая же, как ячейка с названием продукта (style.css, tr.product).
+     * title — заголовок подсказки ненулевой ячейки: «Всего» или название продукта
+     */
+    function stepenCells(stepenCounts, isColored, title) {
         return stepenCounts.map(function (count, k) {
-            const paint = isColored ? cellPaint(count, STEPEN_COLORS[k]) : { className: '', style: {} };
+            const style = isColored ? { backgroundColor: STEPEN_COLORS[k].totalBackground } : {};
             return (
-                <td key={k} colSpan={spans[k]} className={classNames(paint.className, isDimmed(k) && 'dimmed')} style={paint.style}>
+                <td
+                    key={k} colSpan={spans[k]} className={classNames(isDimmed(k) && 'dimmed')} style={style}
+                    {...cellTooltip(count, title, k, null)}
+                >
                     {numberFormat.format(count)}
                 </td>
             );
@@ -70,16 +93,17 @@ export default function DetailTable({
     /**
      * Ячейки строки сервиса: counts[i] — сколько аварий в колонке i. bounds — границы степеней сервиса:
      * у сервиса со своими границами колонка может относиться не к той степени, что в заголовке, —
-     * тогда ячейка красится цветом его степени. Подписей диапазонов в заголовке нет — диапазон виден в подсказке
+     * тогда ячейка красится цветом его степени. Подписей диапазонов в заголовке нет — диапазон виден
+     * в подсказке ненулевой ячейки (заголовок подсказки — serviceName)
      */
-    function valueCells(counts, bounds) {
+    function valueCells(counts, bounds, serviceName) {
         return counts.map(function (count, i) {
             const stepen = stepenOf(columns[i].to, bounds);
             const paint = cellPaint(count, STEPEN_COLORS[stepen]);
             return (
                 <td
-                    key={i} title={`${columnTitle(columns[i])}%`}
-                    className={classNames(paint.className, isDimmed(stepen) && 'dimmed')} style={paint.style}
+                    key={i} className={classNames(paint.className, isDimmed(stepen) && 'dimmed')} style={paint.style}
+                    {...cellTooltip(count, serviceName, stepen, `${columnTitle(columns[i])}%`)}
                 >
                     {numberFormat.format(count)}
                 </td>
@@ -89,35 +113,38 @@ export default function DetailTable({
 
     return (
         <table className="grid" ref={table}>
-            {/* описание колонок: три колонки названий и все колонки диапазонов. Ширину им потом задаст equalizeColumns */}
+            {/* описание колонок: две колонки названий (операция и сервис) и все колонки диапазонов.
+                Ширину им потом задаст equalizeColumns */}
             <colgroup>
-                <col className="name-col" />
                 <col className="name-col" />
                 <col className="name-col" />
                 <col span={columns.length} className="range-cols" />
             </colgroup>
 
-            {/* шапка: «№ / Операция / Сервис» и над колонками диапазонов — названия степеней на их цвете.
-                Название степени — кнопка: клик выбирает степень (остальные приглушаются), повторный клик снимает выбор.
-                Подсказка — как у сектора кольца: «Частичная · 21–50%» и «10 аварий · 34 %» */}
+            {/* шапка: «Операция / Сервис» и над колонками диапазонов — буквы степеней («М», «Ч», «З», «П»)
+                на их цвете (с лёгким градиентом) и стрелкой ⌄ справа. Буква степени — кнопка: клик выбирает степень
+                (остальные приглушаются, стрелка поворачивается вверх), повторный клик снимает выбор.
+                Полное название — в подсказке, как у сектора кольца: «Частичная · 21–50%» и «10 аварий · 34 %»,
+                и для экранного диктора (aria-label) */}
             <thead>
                 <tr>
-                    <th className="name">№</th>
                     <th className="name">Операция</th>
                     <th className="name">Сервис</th>
                     {spans.map(function (span, k) {
-                        const part = { name: STEPEN_NAMES[k], rangeLabel: formatRange(ranges[k]), count: totalCounts[k], color: STEPEN_COLORS[k].color };
+                        const color = STEPEN_COLORS[k].color;
+                        const part = { name: STEPEN_NAMES[k], rangeLabel: formatRange(ranges[k]), count: totalCounts[k], color: color };
                         return (
                             <th
                                 key={k} colSpan={span} className={classNames('stepen-head', isDimmed(k) && 'dimmed')}
-                                style={{ backgroundColor: STEPEN_COLORS[k].color }}   // текст на нём — белый (style.css, .stepen-head)
+                                // цвет степени: слева чуть светлее, справа — как есть; текст на нём — белый (style.css, .stepen-head)
+                                style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${color} 85%, #fff), ${color})` }}
                                 {...tooltipProps(function () { return stepenTooltip(part, total); })}
                             >
                                 <button
-                                    type="button"
+                                    type="button" aria-label={STEPEN_NAMES[k]}
                                     aria-pressed={selectedStepen === k}   // выбрана ли эта степень — для экранного диктора
                                     onClick={function () { onToggleStepen(k); }}
-                                >{STEPEN_NAMES[k]}</button>
+                                >{ranges[k].letter}</button>
                             </th>
                         );
                     })}
@@ -127,8 +154,8 @@ export default function DetailTable({
             <tbody>
                 {/* строка «Всего» — по всем показанным сервисам */}
                 <tr className="sum">
-                    <td colSpan={3} className="name">Всего</td>
-                    {stepenCells(totalCounts, true)}
+                    <td colSpan={2} className="name">Всего</td>
+                    {stepenCells(totalCounts, true, 'Всего')}
                 </tr>
 
                 {groupBy(rows, function (row) { return row.product_id; }).map(function (productRows) {
@@ -137,8 +164,8 @@ export default function DetailTable({
                         <Fragment key={productRows[0].product_id}>
                             {/* строка продукта с подытогом по его сервисам — целиком серая, как ячейка с названием продукта */}
                             <tr className="sum product">
-                                <td colSpan={3} className="name">{productRows[0].product}</td>
-                                {stepenCells(sumByStepen(productRows, metric, buckets, serviceBounds), false)}
+                                <td colSpan={2} className="name">{productRows[0].product}</td>
+                                {stepenCells(sumByStepen(productRows, metric, buckets, serviceBounds), false, productRows[0].product)}
                             </tr>
 
                             {/* сервисы продукта. Номер и название операции пишем один раз —
@@ -148,14 +175,13 @@ export default function DetailTable({
                                     const isCustom = hasOwnBounds(serviceBounds, row.service_id);
                                     return (
                                         <tr key={row.service_id}>
-                                            {i === 0 && <td rowSpan={operationRows.length}>{row.operation_num}</td>}
                                             {i === 0 && <td rowSpan={operationRows.length} className="name">{row.operation}</td>}
                                             <ServiceCell
                                                 name={row.service} isCustom={isCustom}
                                                 bounds={boundsOf(serviceBounds, row.service_id)}
                                                 onOpen={function () { onOpenService(row.service_id); }}
                                             />
-                                            {valueCells(row.counts[metric.id], boundsOf(serviceBounds, row.service_id))}
+                                            {valueCells(row.counts[metric.id], boundsOf(serviceBounds, row.service_id), row.service)}
                                         </tr>
                                     );
                                 });
@@ -170,7 +196,7 @@ export default function DetailTable({
 
 /**
  * Чип сервиса — ячейка с названием сервиса, кнопкой внутри: по нажатию открывается окно его степеней деградации.
- * У чипа пунктирная обводка — его можно нажать; у сервиса со своими границами степеней она сплошная чёрная
+ * Справа в чипе — стрелка, что его можно нажать; у сервиса со своими границами степеней — сплошная чёрная обводка
  * (класс custom) — видно, что он изменён.
  * Нажатие ловим на всей ячейке, а не только на кнопке: в высокой строке кнопка занимает лишь середину ячейки.
  * С клавиатуры тоже работает — Enter на кнопке «всплывает» до ячейки.
@@ -211,7 +237,7 @@ function columnTitle(column) {
 
 /**
  * Как покрасить ячейку цветом степени её колонки (colors — набор цветов степени из STEPEN_COLORS):
- * есть аварии — чуть высветленный цвет и жирное белое число, нет — бледный оттенок и серый ноль.
+ * есть аварии — цвет, разбавленный белым, и жирное тёмное число; нет — бледный оттенок и серый ноль.
  * Возвращает { className, style } для ячейки
  */
 function cellPaint(count, colors) {
@@ -226,7 +252,7 @@ function cellPaint(count, colors) {
  * В обычной раскладке браузер раздаёт свободное место пропорционально содержимому, и колонка
  * с длинной подписью («91–100») выходит шире остальных. Поэтому:
  *   0. сбрасываем прошлое выравнивание — React не пересоздаёт таблицу, а обновляет ту же;
- *   1. берём ширину колонок №, операции и сервиса такой, какой её только что посчитал браузер (по содержимому);
+ *   1. берём ширину колонок операции и сервиса такой, какой её только что посчитал браузер (по содержимому);
  *   2. закрепляем её;
  *   3. переключаем таблицу на фиксированную раскладку — там остаток ширины делится между колонками поровну.
  * Если места меньше, чем MIN_RANGE_COLUMN_WIDTH на колонку, таблица не сжимается, а прокручивается.
@@ -254,12 +280,13 @@ function equalizeColumns(table) {
     }
 
     // таблица не уже, чем названия + колонки диапазонов по MIN_RANGE_COLUMN_WIDTH + промежутки между ячейками
-    // (промежутков на один больше, чем колонок: колонок диапазонов valueCount и ещё 3 колонки названий).
+    // (промежутков на один больше, чем колонок: колонок диапазонов valueCount и ещё колонки названий).
     // Сколько колонок диапазонов — берём из их описания <col span="10">: заголовки над ними объединены по степеням
     const valueCount = table.querySelector('col.range-cols').span;
     const cssSpacing = parseFloat(getComputedStyle(table).borderSpacing);   // промежуток между ячейками из CSS
     const spacing = Number.isNaN(cssSpacing) ? 0 : cssSpacing;
-    table.style.minWidth = `${sum(nameWidths) + valueCount * MIN_RANGE_COLUMN_WIDTH + (valueCount + 4) * spacing}px`;
+    const gaps = valueCount + nameColumns.length + 1;
+    table.style.minWidth = `${sum(nameWidths) + valueCount * MIN_RANGE_COLUMN_WIDTH + gaps * spacing}px`;
 
     // 3. фиксированная раскладка
     table.style.tableLayout = 'fixed';
