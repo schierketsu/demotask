@@ -72,6 +72,11 @@ function TooltipBox({ tip }) {
     // меряем её и ставим на место — без мигания в старой позиции
     useLayoutEffect(function () {
         const element = box.current;
+        // подсказка — popover: showPopover() поднимает её в «верхний слой» браузера, поэтому она видна
+        // и над открытым окном сервиса (<dialog> тоже в верхнем слое, и обычный z-index его не перекроет)
+        if (!element.matches(':popover-open')) {
+            element.showPopover();
+        }
         const width = element.offsetWidth;
         const height = element.offsetHeight;
 
@@ -92,7 +97,7 @@ function TooltipBox({ tip }) {
     });
 
     return (
-        <div className="tooltip" role="tooltip" ref={box}>
+        <div className="tooltip" role="tooltip" popover="manual" ref={box}>
             <div className="tooltip-title">{tip.title}</div>
             {tip.rows.map(function (row, i) {
                 return (
