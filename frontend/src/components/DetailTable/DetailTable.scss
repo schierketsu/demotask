@@ -62,10 +62,10 @@
     position: relative; display: block; width: 100%; padding: 10px 30px 10px 14px; border: 0; border-radius: 4px;
     background: none; text-align: left;
 
-    /* справа внутри чипа — стрелка, как у названий степеней в шапке, но повёрнутая на 90°: смотрит влево, на текст */
+    /* справа внутри чипа — стрелка, как у названий степеней в шапке, но повёрнутая на 90°: смотрит вправо › */
     &::after {
         @include chevron(6px, 2px, var(--text-2));
-        position: absolute; top: 50%; right: 13px; transform: translateY(-50%) rotate(135deg);
+        position: absolute; top: 50%; right: 13px; transform: translateY(-50%) rotate(-45deg);
     }
     &:focus-visible { @include focus-ring(-2px, var(--custom)); }
 }
