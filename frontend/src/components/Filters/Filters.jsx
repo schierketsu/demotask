@@ -38,7 +38,7 @@ export default function Filters({
     data, period, onPeriodChange, productId, onProductChange, onImport, canImport, onExport, isExporting,
 }) {
     // панель из двух половин с разделителем ровно посередине: слева — период, справа — продукт
-    // и у правого края — «Импорт» и Export
+    // и у правого края — «Импорт» и «Экспорт»
     return (
         <div className="toolbar">
             <div className="toolbar-half">
@@ -82,7 +82,7 @@ export default function Filters({
                         >
                             <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 13.5h11" />
                         </svg>
-                        {isExporting ? 'Export…' : 'Export'}
+                        {isExporting ? 'Экспорт…' : 'Экспорт'}
                     </button>
                 </div>
             </div>

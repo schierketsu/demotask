@@ -4,7 +4,7 @@
 import { logout } from '../../auth.js';
 import './UserBar.scss';   // стили этого компонента
 
-// Иконка выхода 16×16 в стиле иконки Export: линии цвета текста
+// Иконка выхода 16×16 в стиле иконки кнопки «Экспорт»: линии цвета текста
 const LOGOUT_ICON = 'M6 2.5H3.5a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1H6M10.5 5 13.5 8l-3 3M13.5 8H6';
 
 /** user — из currentUser() (auth.js): { firstName } */

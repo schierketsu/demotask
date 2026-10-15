@@ -25,7 +25,7 @@
         display: none;
     }
 }
-/* правая половина: продукт, а кнопки «Импорт» и Export прижаты к правому краю. Когда панель становится строкой
+/* правая половина: продукт, а кнопки «Импорт» и «Экспорт» прижаты к правому краю. Когда панель становится строкой
    с переносом, половина растягивается на остаток строки — чтобы кнопки и там стояли у правого края */
 .toolbar-end {
     @media (max-width: 1300px) {
@@ -35,7 +35,7 @@
 .toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .toolbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 
-/* кнопки «Импорт» и Export — такие же, как название периода и продукт (_mixins.scss, pill-button);
+/* кнопки «Импорт» и «Экспорт» — такие же, как название периода и продукт (_mixins.scss, pill-button);
    подсветка — как у стрелок */
 .import-button, .export-button {
     @include pill-button;
