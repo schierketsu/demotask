@@ -2,3 +2,5 @@
 fastapi==0.143.0          # веб-фреймворк: адреса API, разбор параметров, ответы в JSON
 uvicorn[standard]==0.54.0 # сервер: принимает HTTP-запросы и передаёт их в FastAPI
 psycopg[binary]==3.3.6    # драйвер PostgreSQL
+PyJWT==2.15.1             # проверка токенов Keycloak (JWT): подпись, срок, iss, aud
+cryptography==50.0.2      # RSA для PyJWT — Keycloak подписывает токены RS256

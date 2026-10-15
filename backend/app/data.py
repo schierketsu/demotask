@@ -12,6 +12,73 @@ class NoCasesError(Exception):
     """В базе нет ни одного случая деградации — показывать нечего"""
 
 
+class ServiceUnavailableError(Exception):
+    """Сервиса нет или он в архиве (service.is_active = false) — новую запись на него не создать"""
+
+
+def case_references(conn: psycopg.Connection) -> dict:
+    """Справочники для проверки новых случаев (cases.check_rows) и сводки импорта:
+    сервисы {id: {name, is_active, operation, product}} в порядке дашборда, id метрик и id диапазонов
+    """
+    services = query(conn, """
+        SELECT service.id, service.name, service.is_active,
+               operation.name AS operation,
+               product.name   AS product
+        FROM service
+        JOIN operation ON operation.id = service.operation_id
+        JOIN product   ON product.id = operation.product_id
+        ORDER BY product.id, operation.num, service.id""")
+    return {
+        "services": {row["id"]: row for row in services},   # словарь помнит порядок вставки — порядок дашборда
+        "metrics": {row["id"] for row in query(conn, "SELECT id FROM metric")},
+        "buckets": {row["id"] for row in query(conn, "SELECT id FROM bucket")},
+    }
+
+
+def add_cases(conn: psycopg.Connection, cases: list[dict], created_by: str) -> int:
+    """Записать много случаев одним запросом от имени created_by; id идут в порядке строк файла.
+
+    Строки уже проверены (cases.check_rows), но сервис могли убрать в архив, пока шла проверка: тогда вставится
+    меньше строк, чем пришло, — ServiceUnavailableError, и транзакция соединения откатится целиком
+    """
+    cursor = conn.execute("""
+        INSERT INTO degradation_case (service_id, metric_id, bucket_id, case_date, created_by)
+        SELECT new.service_id, new.metric_id, new.bucket_id, new.case_date, %(created_by)s
+        FROM unnest(%(service_ids)s::int[], %(metric_ids)s::int[], %(bucket_ids)s::int[], %(case_dates)s::date[])
+             WITH ORDINALITY AS new (service_id, metric_id, bucket_id, case_date, position)
+        JOIN service ON service.id = new.service_id AND service.is_active
+        ORDER BY new.position""", {
+        "service_ids": [case["service_id"] for case in cases],
+        "metric_ids": [case["metric_id"] for case in cases],
+        "bucket_ids": [case["bucket_id"] for case in cases],
+        "case_dates": [case["case_date"] for case in cases],
+        "created_by": created_by,
+    })
+    if cursor.rowcount != len(cases):
+        raise ServiceUnavailableError
+    return cursor.rowcount
+
+
+def add_case(conn: psycopg.Connection, case: dict, created_by: str) -> dict:
+    """Записать случай деградации: {'service_id', 'metric_id', 'bucket_id', 'case_date'} от имени created_by
+    (пользователь из токена). Возвращает созданную строку целиком — с id и полями аудита.
+
+    Сервис должен быть действующим: INSERT … SELECT из service ничего не вставит, если сервиса нет или он
+    в архиве, — тогда ServiceUnavailableError. Существуют ли метрика и диапазон, проверяет сама база
+    (внешние ключи): если нет — psycopg.errors.ForeignKeyViolation
+    """
+    rows = query(conn, """
+        INSERT INTO degradation_case (service_id, metric_id, bucket_id, case_date, created_by)
+        SELECT service.id, %(metric_id)s, %(bucket_id)s, %(case_date)s, %(created_by)s
+        FROM service
+        WHERE service.id = %(service_id)s AND service.is_active
+        RETURNING id, service_id, metric_id, bucket_id, case_date, created_at, created_by""",
+        {**case, "created_by": created_by})
+    if not rows:
+        raise ServiceUnavailableError
+    return rows[0]
+
+
 def dashboard_data(conn: psycopg.Connection, period_from: date | None, period_to: date | None) -> dict:
     """Собрать данные дашборда за период с period_from по period_to (оба дня включительно).
 

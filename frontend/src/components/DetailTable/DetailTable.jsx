@@ -4,7 +4,7 @@
 import { Fragment, useLayoutEffect, useRef } from 'react';
 import { STEPEN_COLORS, STEPEN_NAMES } from '../../config.js';
 import {
-    boundsOf, formatRange, getStepenRanges, hasOwnBounds, stepenColumnSpans, stepenOf, sum, sumByStepen,
+    boundsOf, columnTitle, formatRange, getStepenRanges, hasOwnBounds, stepenColumnSpans, stepenOf, sum, sumByStepen,
 } from '../../calc.js';
 import { accidentsWord, classNames, groupBy, numberFormat } from '../../helpers.js';
 import { stepenTooltip, useTooltip } from '../Tooltip/Tooltip.jsx';
@@ -229,11 +229,6 @@ function ServiceCell({ name, isCustom, bounds, onOpen }) {
             >{name}</button>
         </td>
     );
-}
-
-/** Подпись колонки: «21–30», а если колонка шириной в один процент — просто «31» */
-function columnTitle(column) {
-    return column.from === column.to ? String(column.from) : `${column.from}–${column.to}`;
 }
 
 /**

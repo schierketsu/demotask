@@ -1,21 +1,28 @@
-// main.jsx — точка входа: подключает стили и рисует App в <div id="root"> из index.html.
+// main.jsx — точка входа: подключает стили, проверяет вход через Keycloak и рисует в <div id="root"> из index.html
+// либо App (вошли), либо экран входа LoginScreen (не вошли или Keycloak не ответил).
 //
 // Из чего состоит страница (все файлы — в src/):
 //   config.js  — постоянные значения: названия, цвета и границы степеней, названия месяцев
 //   calc.js    — расчёты: степени, статистика сервисов, колонки и итоги для таблиц
 //   bounds.js  — логика окна сервиса: включение и отключение степеней, границы между ними
 //   period.js  — период: месяц, год или диапазон дат → две даты «с … по …» для сервера
-//   api.js     — запрос к серверу (GET /api/data)
+//   auth.js    — вход через Keycloak (OIDC, PKCE): токен для API, имя того, кто вошёл, и есть ли у него роль editor
+//   api.js     — запросы к серверу с токеном (GET /api/data, импорт CSV — POST /api/cases/import)
+//   excel.js   — выгрузка в Excel по кнопке «Export»: два листа — без своих границ сервисов и с ними
 //   helpers.js — формат чисел, склонения, классы CSS, группировка строк
 //   App.jsx    — вся страница: её состояние и загрузка данных
-//   styles/    — общие стили: global.scss (шрифты, цвета, базовые теги) и _mixins.scss (повторяющиеся куски стилей)
+//   styles/    — общие стили: global.scss (шрифты, цвета, базовые теги), dialog.scss (оболочка окон)
+//                и _mixins.scss (повторяющиеся куски стилей)
 //   components/ — части страницы, у каждой своя папка: компонент .jsx и его стили .scss рядом
-//     Filters/       — фильтры «Период» и «Продукт»
+//     LoginScreen/   — экран до входа: «Войти»
+//     UserBar/       — шапка: кнопка выхода с именем того, кто вошёл
+//     Filters/       — фильтры «Период» и «Продукт», кнопки «Импорт» и «Export»
 //     MetricBlock/   — раскрывающийся блок метрики: кольцо, полосы сервисов и таблица
 //     Donut/         — кольцевая диаграмма с легендой
 //     ServiceBars/   — полосы по сервисам
 //     DetailTable/   — таблица «как в Excel»
 //     ServiceDialog/ — окно сервиса: свои границы степеней
+//     ImportDialog/  — окно импорта случаев из CSV: файл → проверка → «Принять изменения» (только editor)
 //     Tooltip/       — всплывающая подсказка
 //
 // Как это работает (React):
@@ -27,14 +34,29 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App.jsx';
 import { TooltipProvider } from './components/Tooltip/Tooltip.jsx';
+import LoginScreen from './components/LoginScreen/LoginScreen.jsx';
+import { initAuth } from './auth.js';
 import './styles/global.scss';   // общие стили страницы; стили частей — рядом с компонентами
 
-createRoot(document.getElementById('root')).render(
 //1 .document.getElementById('root') вернет <div>...</div> из index.html
 //2 createRoot((...).render(...) — React сам нарисует App в этом <div> и будет обновлять его при изменении состояния
-    <StrictMode>
-        <TooltipProvider>
-            <App />
-        </TooltipProvider>
-    </StrictMode>,
-);
+const root = createRoot(document.getElementById('root'));
+
+// Сначала спрашиваем Keycloak, вошёл ли пользователь (пока ждём — страница пустая, это доли секунды)
+initAuth().then(function (authenticated) {
+    root.render(
+        <StrictMode>
+            {authenticated
+                ? <TooltipProvider><App /></TooltipProvider>
+                : <LoginScreen error="" />}
+        </StrictMode>,
+    );
+}).catch(function (error) {
+    // Keycloak не ответил (не запущен, сеть) — показываем ошибку и «Повторить»
+    const reason = error && error.message ? error.message : 'нет ответа';
+    root.render(
+        <StrictMode>
+            <LoginScreen error={`Не удалось связаться с сервером авторизации: ${reason}`} />
+        </StrictMode>,
+    );
+});

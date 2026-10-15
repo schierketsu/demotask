@@ -183,6 +183,11 @@ export function buildTableColumns(buckets) {
     return columns;
 }
 
+/** Подпись колонки: «21–30», а если колонка шириной в один процент — просто «31» */
+export function columnTitle(column) {
+    return column.from === column.to ? String(column.from) : `${column.from}–${column.to}`;
+}
+
 /**
  * Сколько колонок-диапазонов у каждой степени (по границам по умолчанию): [2, 3, 3, 2].
  * Это ширина объединённых ячеек степеней — в заголовке таблицы и в строках «Всего» и продуктов

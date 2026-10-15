@@ -25,7 +25,29 @@
         display: none;
     }
 }
+/* правая половина: продукт, а кнопки «Импорт» и Export прижаты к правому краю. Когда панель становится строкой
+   с переносом, половина растягивается на остаток строки — чтобы кнопки и там стояли у правого края */
+.toolbar-end {
+    @media (max-width: 1300px) {
+        flex: 1;
+    }
+}
 .toolbar-group { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.toolbar-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+/* кнопки «Импорт» и Export — такие же, как название периода и продукт (_mixins.scss, pill-button);
+   подсветка — как у стрелок */
+.import-button, .export-button {
+    @include pill-button;
+
+    &:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--wash); }
+    &:focus-visible { @include focus-ring; }
+}
+.export-button:disabled { opacity: .5; cursor: progress; }
+/* «Импорт» без роли editor — серая и плоская: не нажимается, при наведении — подсказка о правах */
+.import-button[aria-disabled="true"] {
+    border-color: var(--line); background: var(--wash); box-shadow: none; color: var(--text-2); cursor: not-allowed;
+}
 .toolbar-label { color: var(--text); }
 
 /* переключатель «Месяц | Год | Диапазон»: серая дорожка, выбранный вариант — белая «таблетка» с тенью */
@@ -62,9 +84,8 @@
 /* название периода — белая «таблетка» с тенью и стрелкой ⌄: нажатие открывает календарь (стрелка смотрит вверх) */
 .period-picker-box { position: relative; }
 .period-title {
-    display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-width: 10em; height: 36px;
-    padding: 0 14px; border: 1px solid; border-radius: 10px; white-space: nowrap;
-    @include raised;
+    @include pill-button;
+    justify-content: center; min-width: 10em;
 
     &::after { @include chevron; flex: none; transform: translateY(-25%) rotate(45deg); transition: transform .15s; }
     &[aria-expanded="true"]::after { transform: translateY(25%) rotate(-135deg); }

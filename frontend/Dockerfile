@@ -5,6 +5,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY . .
+# realm и клиент Keycloak (compose.yaml, build.args): Vite вписывает переменные VITE_* в собранный код (src/auth.js)
+ARG VITE_KEYCLOAK_REALM
+ARG VITE_KEYCLOAK_CLIENT_ID
 RUN npm run build
 
 # 2. Раздача: nginx отдаёт собранные файлы и передаёт /api/ в backend. Node в итоговом образе уже не нужен

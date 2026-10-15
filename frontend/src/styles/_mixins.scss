@@ -30,6 +30,20 @@
     }
 }
 
+// Кнопка панели — белая «таблетка» в тонкой рамке, чуть приподнятая тенью, жирный текст: название периода,
+// продукт, Export и кнопка выхода в шапке выглядят одинаково. Иконка или стрелка ⌄ — через gap
+@mixin pill-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid;
+    border-radius: 10px;
+    white-space: nowrap;
+    @include raised;
+}
+
 // Рамка фокуса с клавиатуры (Tab): видна только при управлении с клавиатуры, не при нажатии мышью
 @mixin focus-ring($offset: 2px, $color: var(--text)) {
     outline: 2px solid $color;

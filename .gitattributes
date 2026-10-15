@@ -1,0 +1,3 @@
+# Эти файлы читает Linux-контейнер Postgres: переводы строк — всегда LF, даже при core.autocrlf=true на Windows
+*.sql text eol=lf
+*.csv text eol=lf

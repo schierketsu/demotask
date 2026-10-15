@@ -1,0 +1,19 @@
+// UserBar.scss — стили шапки страницы (UserBar.jsx): название слева, кнопка выхода с именем справа.
+
+@use '../../styles/mixins' as *;
+
+.user-bar {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+    margin: 0 0 16px; font-size: 14px;
+}
+.app-title { margin: 0; font-size: 18px; }
+
+/* кнопка выхода — как кнопки панели фильтров (_mixins.scss, pill-button) */
+.logout-button {
+    @include pill-button;
+
+    &:hover { background: var(--wash); }
+    &:focus-visible { @include focus-ring; }
+}
+/* длинное имя — с многоточием */
+.logout-name { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }

@@ -29,6 +29,7 @@ import { getStepenRanges, stepenOf } from '../../calc.js';
 import { BOUND_STEP, enabledStepens, sameBounds, setBound, toggleStepen } from '../../bounds.js';
 import { accidentsWord, classNames } from '../../helpers.js';
 import { useTooltip } from '../Tooltip/Tooltip.jsx';
+import '../../styles/dialog.scss';   // оболочка окна: шапка, подвал, кнопки — общая с ImportDialog
 import './ServiceDialog.scss';   // стили этого компонента
 
 // Подписи процентов под шкалами — каждые 20%: 0, 20, 40, 60, 80, 100 (белые отсечки на шкалах — каждые BOUND_STEP)

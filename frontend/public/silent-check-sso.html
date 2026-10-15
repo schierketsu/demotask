@@ -1,0 +1,10 @@
+<!doctype html>
+<!-- Сюда Keycloak возвращает невидимый iframe при тихой проверке входа (auth.js, initAuth):
+     страница только передаёт свой адрес (с ответом Keycloak) в дашборд -->
+<html>
+<body>
+<script>
+    parent.postMessage(location.href, location.origin);
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+/* degradations.css — страница входа Keycloak в стиле дашборда: те же цвета и шрифт (frontend/src/styles/global.scss)
+   и та же карточка, что на экране «Войти» дашборда (components/LoginScreen). Поля — как в окнах дашборда,
+   главная кнопка — тёмная, как «Войти».
+   PatternFly не подключён (theme.properties), поэтому здесь всё оформление. Разметка — из шаблонов классической
+   темы keycloak: классы вида pf-c-… и login-pf-… приходят оттуда, свои стили у них только здесь. */
+
+/* шрифт дашборда: Keycloak открыт на том же адресе (nginx передаёт /auth/* в Keycloak), а файлы шрифтов отдаёт
+   frontend по адресу /fonts/. Если шрифт не загрузится — системный */
+@font-face {
+    font-family: "Styrene A LC";
+    src: url("/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
+    font-weight: 400;
+    font-display: swap;
+}
+@font-face {
+    font-family: "Styrene A LC";
+    src: url("/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
+    font-weight: 700;
+    font-display: swap;
+}
+
+/* цвета — те же, что в global.scss */
+:root {
+    --bg: #ffffff;
+    --text: #0b0b0b;
+    --text-2: #5c5b57;
+    --line: #e6e5e0;
+    --wash: #f4f4f2;
+    --raised-border: #d5d8de;
+    --error: #ef3124;
+}
+
+* { box-sizing: border-box; }
+
+/* белая страница, карточка посередине */
+html { background: var(--bg); }
+body {
+    display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 16px;
+    background: var(--bg); color: var(--text);
+    font: 400 15px/1.4 "Styrene A LC", system-ui, sans-serif;
+}
+a { color: var(--text); text-underline-offset: 2px; }
+button, input { font: inherit; color: inherit; }
+
+/* --- карточка: как на экране «Войти» дашборда — тонкая рамка, большие скругления --- */
+.login-pf-page {
+    width: min(400px, 100%); padding: 40px 32px; border: 1px solid var(--line); border-radius: 24px;
+}
+
+/* название дашборда (displayName realm) над формой не показываем — на всех шагах входа */
+#kc-header { display: none; }
+
+/* что за шаг — серым над формой: «Обновление пароля» и т.п. На самой странице входа
+   («Вход в учетную запись») не показываем — там и так понятно */
+.login-pf-header { margin-bottom: 24px; text-align: center; }
+#kc-page-title { margin: 0; font-size: 15px; font-weight: 400; color: var(--text-2); }
+body[data-page-id="login-login"] .login-pf-header { display: none; }
+
+/* выбор языка — на случай, если в realm снова включат несколько языков */
+#kc-locale { margin-bottom: 12px; text-align: right; font-size: 13px; }
+#kc-locale ul { display: none; }
+#kc-locale-dropdown:hover ul, #kc-locale-dropdown:focus-within ul { display: block; }
+#kc-current-locale-link { border: 0; background: none; color: var(--text-2); cursor: pointer; }
+
+/* --- форма --- */
+.form-group { display: grid; gap: 6px; margin-bottom: 16px; }
+/* пустая строка настроек («запомнить меня», «забыли пароль» выключены) — не занимает места */
+.login-pf-settings:not(:has(input, a)) { display: none; }
+
+.pf-c-form__label { font-size: 14px; color: var(--text-2); }
+
+/* поля — как в окнах дашборда: высота 40, тонкая рамка, скругление 10 */
+.pf-c-form-control {
+    width: 100%; height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+}
+.pf-c-form-control:hover { border-color: var(--raised-border); }
+.pf-c-form-control:focus-visible { outline: 2px solid var(--text); outline-offset: 1px; }
+.pf-c-form-control[aria-invalid="true"] { border-color: var(--error); }
+
+/* кнопку «показать/скрыть пароль» не показываем — поле пароля обычное, во всю ширину */
+[data-password-toggle] { display: none; }
+
+/* --- кнопки --- */
+#kc-form-buttons { margin: 24px 0 0; }
+
+/* главная — тёмная, как «Войти» на экране входа дашборда */
+.pf-c-button.pf-m-primary, input[type="submit"] {
+    width: 100%; height: 44px; padding: 0 24px; border: 0; border-radius: 12px;
+    background: var(--text); color: var(--bg); font-weight: 700; cursor: pointer;
+}
+.pf-c-button.pf-m-primary:hover, input[type="submit"]:hover { opacity: .85; }
+.pf-c-button.pf-m-primary:focus-visible, input[type="submit"]:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* второстепенные (на других шагах входа) — как кнопки панели дашборда: белые в тонкой рамке */
+.pf-c-button.pf-m-secondary, .btn-default {
+    width: 100%; height: 40px; padding: 0 16px; border: 1px solid var(--raised-border); border-radius: 10px;
+    background: var(--bg); font-weight: 700; cursor: pointer;
+}
+.pf-c-button.pf-m-secondary:hover, .btn-default:hover { background: var(--wash); }
+
+/* --- сообщения --- */
+/* ошибка под полем: «Неправильное имя пользователя или пароль» */
+#input-error, .pf-m-error.kc-feedback-text { font-size: 13px; color: var(--error); }
+
+/* сообщение над формой — в рамке, как сообщение об ошибке над дашбордом */
+.pf-c-alert {
+    margin-bottom: 16px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px;
+}
+.pf-c-alert.pf-m-danger { border-color: var(--error); }
+.pf-c-alert__icon { display: none; }
+
+/* на следующих шагах — под каким именем входим и ссылка «начать заново» */
+#kc-username {
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin-bottom: 16px; padding: 8px 12px; border-radius: 10px; background: var(--wash);
+}
+#kc-attempted-username { font-weight: 700; }
+#reset-login { font-size: 14px; }
+
+/* служебные подписи («* обязательные поля») */
+.subtitle { font-size: 13px; color: var(--text-2); }
+.required { color: var(--error); }

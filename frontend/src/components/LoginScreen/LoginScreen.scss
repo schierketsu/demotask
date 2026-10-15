@@ -1,0 +1,19 @@
+// LoginScreen.scss — стили экрана входа (LoginScreen.jsx): карточка посередине экрана.
+
+@use '../../styles/mixins' as *;
+
+.login-screen { display: grid; place-items: center; min-height: calc(100vh - 32px); }
+.login-card {
+    display: grid; gap: 16px; justify-items: center; width: min(400px, 100%); padding: 40px 32px;
+    border: 1px solid var(--line); border-radius: 24px; text-align: center;
+
+    .error { margin: 0; }
+}
+/* кнопка — тёмная: единственное действие на экране */
+.login-button {
+    min-width: 160px; height: 44px; padding: 0 24px; border: 0; border-radius: 12px;
+    background: var(--text); color: var(--bg); font-weight: 700;
+
+    &:hover { opacity: .85; }
+    &:focus-visible { @include focus-ring; }
+}

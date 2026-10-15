@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MONTH_SHORT_NAMES } from '../../config.js';
 import { formatDate, formatMonth } from '../../period.js';
 import { classNames } from '../../helpers.js';
+import { useTooltip } from '../Tooltip/Tooltip.jsx';
 import './Filters.scss';   // стили этого компонента
 
 // Способы выбора периода: значение для period.type и подпись на переключателе
@@ -30,9 +31,14 @@ const PRODUCT_SEARCH_FROM = 7;
  *   period — выбранный период ({ type, month, year, rangeFrom, rangeTo }, см. period.js)
  *   onPeriodChange(changes) — поменяли что-то в периоде: { type: 'year' }, { month: '2026-09' }, …
  *   productId, onProductChange(id) — выбранный продукт ('' — все)
+ *   onImport — нажали «Импорт»; canImport — у пользователя роль editor (иначе кнопка серая и неактивная)
+ *   onExport — нажали «Export»; isExporting — файл ещё собирается, кнопка недоступна
  */
-export default function Filters({ data, period, onPeriodChange, productId, onProductChange }) {
+export default function Filters({
+    data, period, onPeriodChange, productId, onProductChange, onImport, canImport, onExport, isExporting,
+}) {
     // панель из двух половин с разделителем ровно посередине: слева — период, справа — продукт
+    // и у правого края — «Импорт» и Export
     return (
         <div className="toolbar">
             <div className="toolbar-half">
@@ -58,12 +64,57 @@ export default function Filters({ data, period, onPeriodChange, productId, onPro
 
             <span className="toolbar-divider" />
 
-            {/* продукт — кнопка с выбранным продуктом, по нажатию — список всех продуктов */}
-            <div className="toolbar-group">
-                <span className="toolbar-label" id="product-label">Продукт</span>
-                <ProductSelect products={data.products} productId={productId} onProductChange={onProductChange} />
+            <div className="toolbar-half toolbar-end">
+                {/* продукт — кнопка с выбранным продуктом, по нажатию — список всех продуктов */}
+                <div className="toolbar-group">
+                    <span className="toolbar-label" id="product-label">Продукт</span>
+                    <ProductSelect products={data.products} productId={productId} onProductChange={onProductChange} />
+                </div>
+
+                <div className="toolbar-actions">
+                    <ImportButton canImport={canImport} onImport={onImport} />
+
+                    {/* выгрузка в Excel за выбранный период и продукт (excel.js) */}
+                    <button type="button" className="export-button" onClick={onExport} disabled={isExporting}>
+                        <svg
+                            width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+                            fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+                        >
+                            <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 13.5h11" />
+                        </svg>
+                        {isExporting ? 'Export…' : 'Export'}
+                    </button>
+                </div>
             </div>
         </div>
+    );
+}
+
+/**
+ * Кнопка «Импорт» — загрузка случаев из CSV (окно ImportDialog). Записывать может только роль editor:
+ * у остальных кнопка серая и не нажимается, а при наведении — подсказка, что не хватает прав. Это для удобства —
+ * по-настоящему права проверяет сервер. Неактивность — через aria-disabled, а не disabled: на отключённой
+ * кнопке браузеры не дают событий мыши, и подсказка бы не появилась
+ */
+function ImportButton({ canImport, onImport }) {
+    const tooltipProps = useTooltip();
+    const tooltip = canImport ? {} : tooltipProps(function () {
+        return { title: 'Недостаточно прав', rows: [], note: 'Импорт доступен только роли editor' };
+    });
+
+    return (
+        <button
+            type="button" className="import-button" aria-disabled={!canImport}
+            onClick={canImport ? onImport : undefined} {...tooltip}
+        >
+            <svg
+                width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
+                fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
+            >
+                <path d="M8 10.5V2.5M4.5 6 8 2.5 11.5 6M2.5 13.5h11" />
+            </svg>
+            Импорт
+        </button>
     );
 }
 

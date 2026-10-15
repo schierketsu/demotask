@@ -4,3 +4,6 @@
 node_modules/
 dist/
 __pycache__/
+
+# локальные переменные compose (пароли) — шаблон в .env.example
+.env

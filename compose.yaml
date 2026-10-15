@@ -1,3 +1,4 @@
+# Пароли и адрес дашборда берутся из .env (шаблон — .env.example): без них compose не запустится.
 services:
   db:
     build: ./docker/db   # postgres:18 с русской локалью
@@ -5,14 +6,15 @@ services:
     shm_size: 128mb #размер общей памяти контейнера
     environment:
       POSTGRES_USER: postgres_admin
-      POSTGRES_PASSWORD: example
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env (см. .env.example)}
       POSTGRES_DB: testdb
       POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale-provider=icu --icu-locale=ru-RU"
     ports:
       - "${DB_HOST_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
-      # схема и демо-данные загружаются автоматически при первом старте с пустым томом
+      # схема и seed из CSV (db/init.sql, db/seed) загружаются автоматически один раз — при первом старте
+      # с пустым томом; дальше источник истины — PostgreSQL
       - ./db:/docker-entrypoint-initdb.d:ro
       #ro - read-only, чтобы случайно не удалить init-скрипты из контейнера
     healthcheck:
@@ -32,6 +34,40 @@ services:
     ports:
       - "${ADMINER_HOST_PORT:-8080}:8080"
 
+  # Keycloak — вход и роли (OIDC). Наружу не открыт: браузер ходит к нему через nginx по адресу /auth/,
+  # поэтому страница, API и Keycloak живут на одном адресе и CORS не нужен.
+  # start-dev — режим разработки (своя встроенная база, HTTP). Realm с клиентом, ролями и тестовыми
+  # пользователями импортируется из keycloak/ при каждом создании контейнера, если его ещё нет
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.7.5
+    command: ["start-dev", "--import-realm"]
+    restart: always
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_ADMIN_USERNAME:?задайте KC_ADMIN_USERNAME в .env}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD:?задайте KC_ADMIN_PASSWORD в .env}
+      KC_HTTP_RELATIVE_PATH: /auth
+      # публичный адрес Keycloak — из него собираются ссылки для браузера и iss в токенах;
+      # backchannel-dynamic — бэкенд может ходить к Keycloak напрямую по внутреннему адресу keycloak:8080
+      KC_HOSTNAME: ${PUBLIC_URL:-http://localhost:${WEB_HOST_PORT:-8000}}/auth
+      KC_HOSTNAME_BACKCHANNEL_DYNAMIC: "true"
+      KC_PROXY_HEADERS: xforwarded
+      KC_HEALTH_ENABLED: "true"
+      # подставляются в keycloak/realm-degradations.json при импорте
+      DASHBOARD_URL: ${PUBLIC_URL:-http://localhost:${WEB_HOST_PORT:-8000}}
+      KC_READER_PASSWORD: ${KC_READER_PASSWORD:?задайте KC_READER_PASSWORD в .env}
+      KC_EDITOR_PASSWORD: ${KC_EDITOR_PASSWORD:?задайте KC_EDITOR_PASSWORD в .env}
+    volumes:
+      - ./keycloak/realm-degradations.json:/opt/keycloak/data/import/realm-degradations.json:ro
+      # тема страницы входа в стиле дашборда (loginTheme в realm); start-dev не кэширует темы — правки видны сразу
+      - ./keycloak/themes:/opt/keycloak/themes:ro
+    healthcheck:
+      # curl в образе нет — спрашиваем /health/ready на порту управления средствами bash
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/9000 && printf 'GET /auth/health/ready HTTP/1.0\\r\\n\\r\\n' >&3 && timeout 3 cat <&3 | grep -q '\"UP\"'"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
   # API на Python (FastAPI + uvicorn): backend/app. Код попадает в образ при сборке —
   # после правок: docker compose up -d --build backend
   backend:
@@ -42,20 +78,33 @@ services:
       DB_PORT: 5432
       DB_NAME: testdb
       DB_USER: postgres_admin
-      DB_PASSWORD: example
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?задайте POSTGRES_PASSWORD в .env}
+      # проверка токенов (backend/app/auth.py): кто выдал (iss — публичный адрес realm),
+      # для кого (aud) и где взять ключи подписи (внутренний адрес Keycloak)
+      KEYCLOAK_ISSUER: ${PUBLIC_URL:-http://localhost:${WEB_HOST_PORT:-8000}}/auth/realms/degradations
+      KEYCLOAK_AUDIENCE: dashboard-api
+      KEYCLOAK_JWKS_URL: http://keycloak:8080/auth/realms/degradations/protocol/openid-connect/certs
     depends_on:
       db:
         condition: service_healthy
 
-  # страница на React: Node собирает её из frontend/src, nginx раздаёт сборку и передаёт /api/* в backend.
-  # После правок: docker compose up -d --build frontend
+  # страница на React: Node собирает её из frontend/src, nginx раздаёт сборку и передаёт /api/* в backend,
+  # а /auth/* — в Keycloak. После правок: docker compose up -d --build frontend
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        # realm и клиент Keycloak, у которых страница просит вход (frontend/src/auth.js)
+        VITE_KEYCLOAK_REALM: degradations
+        VITE_KEYCLOAK_CLIENT_ID: dashboard
     restart: always
     ports:
       - "${WEB_HOST_PORT:-8000}:80"
     depends_on:
-      - backend
+      backend:
+        condition: service_started
+      keycloak:
+        condition: service_healthy
 
 volumes:
   postgres_data:

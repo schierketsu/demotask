@@ -8,6 +8,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
+    "keycloak-js": "^26.2.4",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

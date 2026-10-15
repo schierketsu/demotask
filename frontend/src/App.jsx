@@ -6,16 +6,26 @@
 //   пользователь выбирает период (месяц, год или диапазон дат) → превращаем его в две даты «с … по …» (period.js),
 //     загружаем данные за этот период → data заменяется → страница обновилась
 //   пользователь нажимает на чип сервиса → окно сервиса (ServiceDialog) → сохранил границы → serviceBounds меняется
+//   пользователь нажимает «Export» → файл Excel за этот период и продукт (excel.js) скачивается
+//   editor нажимает «Импорт» → окно ImportDialog: CSV → проверка → «Принять изменения» → данные загружаются заново
+//
+// App рисуется только после входа (main.jsx): кто вошёл и есть ли у него роль editor — currentUser() из auth.js.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { loadData } from './api.js';
+import { currentUser } from './auth.js';
 import { buildServiceStats, buildTableColumns, getStepenRanges, maxShownCount, rowsOfProduct, boundsOf } from './calc.js';
 import { initialPeriod, periodDates, periodLabel } from './period.js';
+import { exportToExcel } from './excel.js';
 import Filters from './components/Filters/Filters.jsx';
+import ImportDialog from './components/ImportDialog/ImportDialog.jsx';
 import MetricBlock from './components/MetricBlock/MetricBlock.jsx';
 import ServiceDialog from './components/ServiceDialog/ServiceDialog.jsx';
+import UserBar from './components/UserBar/UserBar.jsx';
 
 export default function App() {
+    const user = currentUser();   // кто вошёл: имя и есть ли роль editor — из токена Keycloak
+
     // Состояние страницы — всё, что она «помнит». useState возвращает значение и функцию, которая его меняет;
     // после такой замены React сам перерисует страницу
     const [data, setData] = useState(null);                    // данные с сервера (ответ /api/data); null — ещё не пришли
@@ -30,6 +40,8 @@ export default function App() {
     // при смене периода сохраняются, после перезагрузки страницы сбрасываются
     const [serviceBounds, setServiceBounds] = useState({});
     const [dialogServiceId, setDialogServiceId] = useState(null);   // чьё окно открыто; null — никакое
+    const [isExporting, setExporting] = useState(false);            // собирается файл Excel — кнопка Export недоступна
+    const [isImportOpen, setImportOpen] = useState(false);          // открыто окно импорта (только editor)
 
     // период последнего запроса «2026-01-01|2026-03-31» — чтобы не показать устаревший ответ (см. changePeriod).
     // useRef — значение, которое живёт между перерисовками, но его изменение страницу не перерисовывает
@@ -97,6 +109,21 @@ export default function App() {
         setError('');
     }
 
+    /**
+     * Нажали «Export»: файл Excel за загруженный период и выбранный продукт — лист без своих границ сервисов
+     * и лист с ними (excel.js). Выбранная степень на файл не влияет — в нём все степени
+     */
+    async function exportExcel() {
+        setExporting(true);
+        try {
+            await exportToExcel(data, period, productId, serviceBounds);
+        } catch (exportError) {
+            setError(`Не удалось выгрузить Excel: ${exportError.message}`);
+        } finally {
+            setExporting(false);
+        }
+    }
+
     /** Клик по названию степени в шапке таблицы, сектору кольца или строке легенды: выбрать степень; повторный — снять */
     function toggleStepen(stepen) {
         setSelectedStepen(selectedStepen === stepen ? null : stepen);
@@ -119,9 +146,18 @@ export default function App() {
         setDialogServiceId(null);
     }, []);
 
+    const closeImport = useCallback(function () {
+        setImportOpen(false);
+    }, []);
+
     if (data === null) {
-        // данные ещё не пришли: показываем только ошибку, если она есть
-        return error !== '' ? <p className="error" role="alert">{error}</p> : null;
+        // данные ещё не пришли: шапка (чтобы можно было выйти — например, при 403 без роли) и ошибка, если она есть
+        return (
+            <>
+                <UserBar user={user} />
+                {error !== '' && <p className="error" role="alert">{error}</p>}
+            </>
+        );
     }
 
     // всё, что зависит от данных и выбора, считаем при каждой перерисовке (calc.js)
@@ -141,9 +177,13 @@ export default function App() {
 
     return (
         <>
+            <UserBar user={user} />
+
             <Filters
                 data={data} period={period} onPeriodChange={changePeriod}
                 productId={productId} onProductChange={setProductId}
+                onImport={function () { setImportOpen(true); }} canImport={user.canWrite}
+                onExport={exportExcel} isExporting={isExporting}
             />
 
             {error !== '' && <p className="error" role="alert">{error}</p>}
@@ -177,6 +217,9 @@ export default function App() {
                     onClose={closeDialog}
                 />
             )}
+
+            {/* окно импорта из CSV; записали — загружаем данные выбранного периода заново */}
+            {isImportOpen && <ImportDialog onImported={function () { changePeriod({}); }} onClose={closeImport} />}
         </>
     );
 }

@@ -1,0 +1,80 @@
+{
+  "realm": "degradations",
+  "displayName": "Деградация сервисов",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "resetPasswordAllowed": false,
+  "rememberMe": false,
+  "loginWithEmailAllowed": false,
+  "bruteForceProtected": true,
+  "internationalizationEnabled": true,
+  "supportedLocales": ["ru"],
+  "defaultLocale": "ru",
+  "loginTheme": "degradations",
+
+  "roles": {
+    "realm": [
+      { "name": "reader", "description": "Только чтение: дашборд и выгрузка в Excel" },
+      { "name": "editor", "description": "Чтение и запись: может добавлять случаи деградации" }
+    ]
+  },
+
+  "clients": [
+    {
+      "clientId": "dashboard",
+      "name": "Дашборд деградаций",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": true,
+      "redirectUris": ["${DASHBOARD_URL}/*", "${DASHBOARD_DEV_URL:http://localhost:5173}/*"],
+      "webOrigins": ["+"],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
+      },
+      "protocolMappers": [
+        {
+          "name": "audience: dashboard-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "dashboard-api",
+            "access.token.claim": "true",
+            "introspection.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+
+  "users": [
+    {
+      "username": "reader",
+      "enabled": true,
+      "email": "reader@example.com",
+      "emailVerified": true,
+      "firstName": "Читатель",
+      "lastName": "Тестовый",
+      "credentials": [{ "type": "password", "value": "${KC_READER_PASSWORD}", "temporary": false }],
+      "realmRoles": ["reader"]
+    },
+    {
+      "username": "editor",
+      "enabled": true,
+      "email": "editor@example.com",
+      "emailVerified": true,
+      "firstName": "Редактор",
+      "lastName": "Тестовый",
+      "credentials": [{ "type": "password", "value": "${KC_EDITOR_PASSWORD}", "temporary": false }],
+      "realmRoles": ["editor"]
+    }
+  ]
+}
