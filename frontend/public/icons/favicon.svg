@@ -1,0 +1,10 @@
+<!-- иконка вкладки дашборда; та же форма, что у страницы входа (keycloak/themes/degradations/login/resources/img/favicon.svg) -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <clipPath id="shape"><rect x="1" y="1" width="30" height="30" rx="4"/></clipPath>
+    <g clip-path="url(#shape)">
+        <rect x="0" y="0" width="16" height="16" fill="#3AC35F"/>
+        <rect x="16" y="0" width="16" height="16" fill="#FBBD1D"/>
+        <rect x="0" y="16" width="16" height="16" fill="#FC6C26"/>
+        <rect x="16" y="16" width="16" height="16" fill="#E02532"/>
+    </g>
+</svg>

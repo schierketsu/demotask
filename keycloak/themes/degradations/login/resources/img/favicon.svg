@@ -1,0 +1,10 @@
+<!-- иконка вкладки страницы входа: значок дашборда (frontend/public/icons/favicon.svg) в синих тонах -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+    <clipPath id="shape"><rect x="1" y="1" width="30" height="30" rx="4"/></clipPath>
+    <g clip-path="url(#shape)">
+        <rect x="0" y="0" width="16" height="16" fill="#8EC5FF"/>
+        <rect x="16" y="0" width="16" height="16" fill="#4A9BF0"/>
+        <rect x="0" y="16" width="16" height="16" fill="#1F6FD6"/>
+        <rect x="16" y="16" width="16" height="16" fill="#123F8F"/>
+    </g>
+</svg>
