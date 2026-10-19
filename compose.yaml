@@ -24,16 +24,6 @@ services:
       timeout: 3s
       retries: 20
 
-  adminer:
-    image: adminer
-    restart: always
-    depends_on:
-      - db
-    environment:
-      ADMINER_DEFAULT_SERVER: db
-    ports:
-      - "${ADMINER_HOST_PORT:-8080}:8080"
-
   # Keycloak — вход и роли (OIDC). Наружу не открыт: браузер ходит к нему через nginx по адресу /auth/,
   # поэтому страница, API и Keycloak живут на одном адресе и CORS не нужен.
   # start-dev — режим разработки (своя встроенная база, HTTP). Realm с клиентом, ролями и тестовыми

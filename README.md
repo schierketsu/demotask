@@ -16,13 +16,12 @@ Keycloak стартует секунд 20–30, фронт ждёт его го�
 - дашборд: http://localhost:8000 (вход — `reader` / `reader` или `editor` / `editor`, пароли из `.env`)
 - Swagger: http://localhost:8000/api/docs
 - админка Keycloak: http://localhost:8000/auth/admin/ (логин и пароль — `KC_ADMIN_*` из `.env`)
-- Adminer: http://localhost:8080 (сервер `db`, логин `postgres_admin`, пароль — `POSTGRES_PASSWORD` из `.env`, база `testdb`)
 - Postgres: localhost:5432
 
 Если порты заняты, их можно переопределить:
 
 ```sh
-DB_HOST_PORT=55432 ADMINER_HOST_PORT=8081 WEB_HOST_PORT=8001 docker compose up -d
+DB_HOST_PORT=55432 WEB_HOST_PORT=8001 docker compose up -d
 ```
 
 От адреса дашборда зависят вход и проверка токенов. При смене `WEB_HOST_PORT` адрес пересчитается сам, а если дашборд открывают не с `localhost`, пропишите `PUBLIC_URL` в `.env`.
@@ -180,7 +179,7 @@ INSERT INTO service (operation_id, name, created_by) VALUES (2, 'Проверк�
 ## Структура
 
 ```
-compose.yaml            db, adminer, keycloak, backend, frontend
+compose.yaml            db, keycloak, backend, frontend
 .env.example            шаблон .env: пароли и публичный адрес
 docker/db/Dockerfile    Postgres с русской локалью (ICU)
 db/
