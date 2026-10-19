@@ -20,10 +20,10 @@
     position: relative; height: 26px; font-size: 13px; color: var(--text-2);
 
     span { position: absolute; top: 8px; transform: translateX(-50%); line-height: 1; }
-    span::before { content: ""; position: absolute; left: 50%; top: -8px; width: 1px; height: 5px; background: #c9ccd2; }
+    span::before { content: ""; position: absolute; left: 50%; top: -8px; width: 1px; height: 5px; background: var(--track); }
 }
-/* белая отсечка у нижнего края шкалы — каждые 10%: толстая и короткая */
-.scale-tick { position: absolute; bottom: 0; width: 2px; height: 7px; background: #fff; transform: translateX(-50%); }
+/* отсечка цвета фона у нижнего края шкалы — каждые 10%: толстая и короткая */
+.scale-tick { position: absolute; bottom: 0; width: 2px; height: 7px; background: var(--bg); transform: translateX(-50%); }
 
 /* «Распределение инцидентов»: слева название метрики, справа ось — цветные зоны степеней и кружки на них.
    Кружок стоит посередине диапазона (0–10 → 5%, 21–30 → 25% ширины оси), в нём — сколько аварий в диапазоне */
@@ -87,10 +87,10 @@
 .slider-zone { position: absolute; top: 0; bottom: 0; transition: left .15s, width .15s; }
 /* линия от плашки к ручке — цвета степени, которая на этой границе кончается */
 .slider-line { position: absolute; top: -10px; bottom: 0; width: 2px; transform: translateX(-50%); pointer-events: none; }
-/* ручка — на нижнем краю шкалы: кружок цвета степени (--handle-color) в белом ободке */
+/* ручка — на нижнем краю шкалы: кружок цвета степени (--handle-color) в ободке цвета фона окна */
 .slider-handle {
     position: absolute; top: 100%; width: 20px; height: 20px; border-radius: 50%; transform: translate(-50%, -50%);
-    background: #fff; box-shadow: 0 1px 4px rgba(15, 23, 42, .35); cursor: grab;
+    background: var(--bg); box-shadow: 0 1px 4px rgba(15, 23, 42, .35); cursor: grab;
 
     &::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; background: var(--handle-color); }
     &:active { cursor: grabbing; }
@@ -128,7 +128,7 @@
 /* тумблер: серый — степень отключена, зелёный с кружком справа — включена */
 .switch {
     position: relative; width: 42px; height: 24px; flex: none; padding: 0;
-    border: 0; border-radius: 12px; background: #c9ccd2; transition: background .15s;
+    border: 0; border-radius: 12px; background: var(--track); transition: background .15s;
 
     &::after {
         content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%;

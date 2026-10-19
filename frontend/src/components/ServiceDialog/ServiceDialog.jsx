@@ -28,6 +28,7 @@ import { STEPEN_BOUNDS, STEPEN_COLORS, STEPEN_NAMES } from '../../config.js';
 import { getStepenRanges, stepenOf } from '../../calc.js';
 import { BOUND_STEP, enabledStepens, sameBounds, setBound, toggleStepen } from '../../bounds.js';
 import { accidentsWord, classNames } from '../../helpers.js';
+import { stepenVar } from '../../theme.js';
 import { useTooltip } from '../Tooltip/Tooltip.jsx';
 import '../../styles/dialog.scss';   // оболочка окна: шапка, подвал, кнопки — общая с ImportDialog
 import './ServiceDialog.scss';   // стили этого компонента
@@ -157,7 +158,7 @@ function CaseTracks({ service, metrics, buckets, draft, ranges }) {
                                     <span
                                         key={`zone-${i}`} className="case-zone"
                                         style={{
-                                            background: STEPEN_COLORS[i].emptyCellBackground,   // цвет степени с прозрачностью 16 %
+                                            background: stepenVar(i, 'empty'),   // бледный цвет степени, как у пустой ячейки таблицы
                                             left: `${range.start}%`,
                                             width: `${range.end - range.start}%`,
                                         }}
@@ -325,8 +326,9 @@ function BoundsSlider({ draft, ranges, onChange }) {
                                 style={{
                                     left: `${range.start}%`,
                                     width: `${range.end - range.start}%`,
-                                    // цвет степени, наполовину разбавленный белым — ярче зон над ним, но не кричащий
-                                    background: `color-mix(in srgb, ${STEPEN_COLORS[i].color} 50%, #fff)`,
+                                    // цвет степени, наполовину разбавленный фоном окна (в светлой теме — белым) —
+                                    // ярче зон над ним, но не кричащий
+                                    background: `color-mix(in srgb, ${STEPEN_COLORS[i].color} 50%, var(--bg))`,
                                 }}
                             />
                         );

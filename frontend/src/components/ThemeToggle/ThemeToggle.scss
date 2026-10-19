@@ -1,0 +1,29 @@
+// ThemeToggle.scss — стили переключателя темы (ThemeToggle.jsx): серая дорожка, как у «Месяц | Год | Диапазон»,
+// по ней ездит «таблетка» под выбранной иконкой. Высота 36px — как у кнопок панели.
+// Такие же стили у переключателя на странице входа Keycloak (keycloak/.../css/degradations.css)
+
+@use '../../styles/mixins' as *;
+
+.theme-toggle {
+    position: relative; display: inline-flex; flex: none; padding: 3px;
+    border: 0; border-radius: 12px; background: var(--wash);
+
+    /* «таблетка» под выбранной иконкой: слева — солнце (светлая), справа — луна (тёмная) */
+    &::before {
+        content: ""; position: absolute; top: 3px; left: 3px; width: 36px; height: 30px; border-radius: 9px;
+        @include raised($border: false);
+        transition: transform .2s;
+    }
+    &[aria-checked="true"]::before { transform: translateX(100%); }
+
+    &:focus-visible { @include focus-ring; }
+}
+.theme-toggle-icon {
+    position: relative;   /* поверх «таблетки» */
+    display: grid; place-items: center; width: 36px; height: 30px; color: var(--text-2); transition: color .2s;
+
+    .theme-toggle:hover & { color: var(--text); }
+}
+/* выбранная иконка — цвета текста */
+.theme-toggle[aria-checked="false"] .theme-toggle-icon:first-child,
+.theme-toggle[aria-checked="true"] .theme-toggle-icon:last-child { color: var(--text); }

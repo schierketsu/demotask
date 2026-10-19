@@ -4,32 +4,48 @@
 
 @font-face {
     font-family: "Styrene A LC";
-    src: url("/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
+    src: url("/fonts/Regular.otf") format("opentype");
     font-weight: 400;
     font-display: swap;
 }
 
 @font-face {
     font-family: "Styrene A LC";
-    src: url("/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
+    src: url("/fonts/Bold.otf") format("opentype");
     font-weight: 700;
     font-display: swap;
 }
 
+/* Цвета — светлая тема. Тёмная (ниже, data-theme="dark") переопределяет те же переменные, поэтому стили
+   компонентов о теме не знают: пишут var(--bg), var(--text) и т.п. Тему выбирает src/theme.js */
 :root {
-    --bg: #ffffff;
+    color-scheme: light;   /* стандартные элементы браузера (полосы прокрутки, поля) — светлые */
+
+    --page: #ffffff;   /* фон самой страницы */
+    --bg: #ffffff;     /* фон карточек, окон, всплывающих списков и полей */
     --text: #0b0b0b;
     --text-2: #5c5b57;
     --line: #e6e5e0;
     --wash: #f4f4f2;
+    --wash-hover: #ebebe8;   /* серый фон при наведении — у чипа сервиса в таблице */
+    --error: #ef3124;
+    --track: #c9ccd2;        /* выключенный тумблер и мелкие отсечки шкал в окне сервиса */
+    --backdrop: rgba(15, 23, 42, .35);   /* затемнение страницы под открытым окном */
 
     /* синий из фирменной палитры — рамка фокуса с клавиатуры у чипа сервиса (среди цветов степеней его нет) */
     --custom: #2b73fe;
 
     /* выделение выбранного в панели фильтров — белая «таблетка», чуть приподнятая тенью
        (переключатель «Месяц | Год | Диапазон», название периода, месяц или год в календаре, продукт) */
+    --raised-bg: #ffffff;
+    --pill-bg: #ffffff;   /* кнопки панели: название периода, продукт, «Импорт», «Экспорт», выход */
     --raised-shadow: 0 1px 3px rgba(15, 23, 42, .15);
     --raised-border: #d5d8de;
+
+    /* обводки карточек, полос блоков метрик, стрелок периода и линий внутри карточки (--edge)
+       и кнопок-«таблеток» (--pill-edge). В тёмной теме их нет — элементы отличаются от страницы заливкой */
+    --edge: #e6e5e0;
+    --pill-edge: #d5d8de;
 
     /* три размера шрифта на всю страницу */
     --fs-l: 24px;  /* заголовок страницы, число в центре диаграммы */
@@ -37,13 +53,40 @@
     --fs-s: 12px;  /* подписи, таблица */
 }
 
+/* тёмная тема: тёмно-синеватый фон, карточки чуть светлее страницы, выбранное — ещё светлее */
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --page: #0e1116;
+    --bg: #12171d;
+    --text: #f3f5f7;
+    --text-2: #a3abb5;
+    --line: #262d36;
+    --wash: #1c2228;
+    --wash-hover: #262d35;
+    --error: #ff5a4f;
+    --track: #3a424d;
+    --backdrop: rgba(0, 0, 0, .6);
+
+    --custom: #5b95ff;
+
+    --raised-bg: #303740;
+    --pill-bg: #181d23;
+    --raised-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+    --raised-border: #343c46;
+
+    --edge: transparent;
+    --pill-edge: transparent;
+}
+
 * { box-sizing: border-box; }
 
+html { background: var(--page); }
 body {
     margin: 0 auto;
     max-width: 1440px;
     padding: 16px;
-    background: var(--bg);
+    background: var(--page);
     color: var(--text);
     font: 400 var(--fs-m)/1.4 "Styrene A LC", system-ui, sans-serif;
 }
@@ -61,7 +104,7 @@ button { cursor: pointer; }
 .dimmed { opacity: .25; }
 
 /* сообщение об ошибке над страницей (App.jsx) */
-.error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid #ef3124; border-radius: 8px; }
+.error { margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--error); border-radius: 8px; }
 
 /* minmax(0, …) — чтобы широкая таблица прокручивалась внутри карточки, а не растягивала страницу */
 main { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }

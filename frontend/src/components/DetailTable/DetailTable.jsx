@@ -7,6 +7,7 @@ import {
     boundsOf, columnTitle, formatRange, getStepenRanges, hasOwnBounds, stepenColumnSpans, stepenOf, sum, sumByStepen,
 } from '../../calc.js';
 import { accidentsWord, classNames, groupBy, numberFormat } from '../../helpers.js';
+import { stepenVar } from '../../theme.js';
 import { stepenTooltip, useTooltip } from '../Tooltip/Tooltip.jsx';
 import './DetailTable.scss';   // стили этого компонента
 
@@ -79,7 +80,7 @@ export default function DetailTable({
      */
     function stepenCells(stepenCounts, isColored, title) {
         return stepenCounts.map(function (count, k) {
-            const style = isColored ? { backgroundColor: STEPEN_COLORS[k].totalBackground } : {};
+            const style = isColored ? { backgroundColor: stepenVar(k, 'total') } : {};
             return (
                 <td
                     key={k} colSpan={spans[k]} className={classNames(isDimmed(k) && 'dimmed')} style={style}
@@ -100,7 +101,7 @@ export default function DetailTable({
     function valueCells(counts, bounds, serviceName) {
         return counts.map(function (count, i) {
             const stepen = stepenOf(columns[i].to, bounds);
-            const paint = cellPaint(count, STEPEN_COLORS[stepen]);
+            const paint = cellPaint(count, stepen);
             return (
                 <td
                     key={i} className={classNames(paint.className, isDimmed(stepen) && 'dimmed')} style={paint.style}
@@ -137,8 +138,8 @@ export default function DetailTable({
                         return (
                             <th
                                 key={k} colSpan={span} className={classNames('stepen-head', isDimmed(k) && 'dimmed')}
-                                // цвет степени: слева чуть светлее, справа — как есть; текст на нём — белый (DetailTable.scss, .stepen-head)
-                                style={{ background: `linear-gradient(90deg, color-mix(in srgb, ${color} 85%, #fff), ${color})` }}
+                                // цвет степени — фон-градиент из него рисует DetailTable.scss (.stepen-head), текст на нём — белый
+                                style={{ '--stepen-color': color }}
                                 {...tooltipProps(function () { return stepenTooltip(part, total); })}
                             >
                                 <button
@@ -232,15 +233,15 @@ function ServiceCell({ name, isCustom, bounds, onOpen }) {
 }
 
 /**
- * Как покрасить ячейку цветом степени её колонки (colors — набор цветов степени из STEPEN_COLORS):
- * есть аварии — цвет, разбавленный белым, и жирное тёмное число; нет — бледный оттенок и серый ноль.
- * Возвращает { className, style } для ячейки
+ * Как покрасить ячейку цветом степени её колонки (stepen — номер степени 0..3; сами цвета — в config.js,
+ * на странице — CSS-переменные текущей темы, theme.js): есть аварии — насыщенный фон и жирное число;
+ * нет — бледный оттенок и серый ноль. Возвращает { className, style } для ячейки
  */
-function cellPaint(count, colors) {
+function cellPaint(count, stepen) {
     if (count) {
-        return { className: 'has-accidents', style: { backgroundColor: colors.cellBackground } };
+        return { className: 'has-accidents', style: { backgroundColor: stepenVar(stepen, 'cell') } };
     }
-    return { className: '', style: { backgroundColor: colors.emptyCellBackground, color: 'var(--text-2)' } };
+    return { className: '', style: { backgroundColor: stepenVar(stepen, 'empty'), color: 'var(--text-2)' } };
 }
 
 /**

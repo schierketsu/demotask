@@ -13,23 +13,44 @@ export const STEPEN_NAMES = ['Минимальная', 'Частичная', 'З
  *                         число на нём — тёмное
  *   emptyCellBackground — фон ячейки таблицы без аварий и бледные зоны в окне сервиса: основной цвет, почти прозрачный
  *   totalBackground     — фон итога степени в строке «Всего»: чуть плотнее, чем у пустой ячейки; число на нём — чёрное
+ *   dark                — те же три фона для тёмной темы: основной цвет, приглушённый к тёмному фону; числа на них
+ *                         светлые. Основной цвет в тёмной теме тот же
+ *
+ * Фоны ячеек страница берёт не отсюда напрямую, а из CSS-переменных (--stepen-0-cell и т.п., theme.js) —
+ * так при смене темы цвета меняются без перерисовки. Excel (excel.js) всегда светлый — берёт светлые цвета отсюда
  */
 export const STEPEN_COLORS = [
     {   // минимальная — зелёный
         color: '#2fc35a', cellBackground: '#8ce19f',
         emptyCellBackground: 'rgba(47, 195, 90, 0.12)', totalBackground: 'rgba(47, 195, 90, 0.2)',
+        dark: {
+            cellBackground: '#236b3f',
+            emptyCellBackground: 'rgba(47, 195, 90, 0.18)', totalBackground: 'rgba(47, 195, 90, 0.28)',
+        },
     },
     {   // частичная — жёлтый
         color: '#fbb516', cellBackground: '#fdd468',
         emptyCellBackground: 'rgba(251, 181, 22, 0.14)', totalBackground: 'rgba(251, 181, 22, 0.24)',
+        dark: {
+            cellBackground: '#a7791a',
+            emptyCellBackground: 'rgba(251, 181, 22, 0.16)', totalBackground: 'rgba(251, 181, 22, 0.3)',
+        },
     },
     {   // значительная — оранжевый
         color: '#ff5b1f', cellBackground: '#ff9a72',
         emptyCellBackground: 'rgba(255, 91, 31, 0.11)', totalBackground: 'rgba(255, 91, 31, 0.17)',
+        dark: {
+            cellBackground: '#b34e2e',
+            emptyCellBackground: 'rgba(255, 91, 31, 0.15)', totalBackground: 'rgba(255, 91, 31, 0.27)',
+        },
     },
     {   // полная — красный
         color: '#e31d2f', cellBackground: '#ee6f7a',
         emptyCellBackground: 'rgba(227, 29, 47, 0.1)', totalBackground: 'rgba(227, 29, 47, 0.16)',
+        dark: {
+            cellBackground: '#c83c45',
+            emptyCellBackground: 'rgba(227, 29, 47, 0.17)', totalBackground: 'rgba(227, 29, 47, 0.27)',
+        },
     },
 ];
 

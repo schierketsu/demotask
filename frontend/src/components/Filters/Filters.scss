@@ -46,7 +46,7 @@
 .export-button:disabled { opacity: .5; cursor: progress; }
 /* «Импорт» без роли editor — серая и плоская: не нажимается, при наведении — подсказка о правах */
 .import-button[aria-disabled="true"] {
-    border-color: var(--line); background: var(--wash); box-shadow: none; color: var(--text-2); cursor: not-allowed;
+    border-color: var(--edge); background: var(--wash); box-shadow: none; color: var(--text-2); cursor: not-allowed;
 }
 .toolbar-label { color: var(--text); }
 
@@ -70,7 +70,7 @@
    на краю списка периодов — недоступны. plain — без рамки (стрелки года и месяца в календарях) */
 .nav-arrow {
     position: relative; width: 36px; height: 36px; flex: none; padding: 0;
-    border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+    border: 1px solid var(--edge); border-radius: 10px; background: var(--bg);
 
     &.plain { border-color: transparent; }
     &:hover:not(:disabled) { background: var(--wash); }

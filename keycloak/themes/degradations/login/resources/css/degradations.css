@@ -8,39 +8,76 @@
    frontend по адресу /fonts/. Если шрифт не загрузится — системный */
 @font-face {
     font-family: "Styrene A LC";
-    src: url("/fonts/Styrene%20A%20LC-Regular.otf") format("opentype");
+    src: url("/fonts/Regular.otf") format("opentype");
     font-weight: 400;
     font-display: swap;
 }
 @font-face {
     font-family: "Styrene A LC";
-    src: url("/fonts/Styrene%20A%20LC-Bold.otf") format("opentype");
+    src: url("/fonts/Bold.otf") format("opentype");
     font-weight: 700;
     font-display: swap;
 }
 
-/* цвета — те же, что в global.scss */
+/* цвета — те же, что в global.scss: светлая тема, ниже — тёмная (data-theme="dark" у <html> ставит js/theme.js) */
 :root {
+    color-scheme: light;
+    --page: #ffffff;
     --bg: #ffffff;
     --text: #0b0b0b;
     --text-2: #5c5b57;
     --line: #e6e5e0;
     --wash: #f4f4f2;
+    --raised-bg: #ffffff;
+    --raised-shadow: 0 1px 3px rgba(15, 23, 42, .15);
     --raised-border: #d5d8de;
     --error: #ef3124;
+}
+:root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0f1217;
+    --bg: #12171d;
+    --text: #f3f5f7;
+    --text-2: #a3abb5;
+    --line: #262d36;
+    --wash: #1c2228;
+    --raised-bg: #303740;
+    --raised-shadow: 0 1px 3px rgba(0, 0, 0, .5);
+    --raised-border: #343c46;
+    --error: #ff5a4f;
 }
 
 * { box-sizing: border-box; }
 
-/* белая страница, карточка посередине */
-html { background: var(--bg); }
+/* страница цвета фона, карточка посередине */
+html { background: var(--page); }
 body {
     display: grid; place-items: center; min-height: 100vh; margin: 0; padding: 16px;
-    background: var(--bg); color: var(--text);
+    background: var(--page); color: var(--text);
     font: 400 15px/1.4 "Styrene A LC", system-ui, sans-serif;
 }
 a { color: var(--text); text-underline-offset: 2px; }
 button, input { font: inherit; color: inherit; }
+
+/* --- переключатель темы слева вверху — как в шапке дашборда (components/ThemeToggle/ThemeToggle.scss).
+   Там он стоит у левого края колонки шириной 1440px посередине экрана — здесь там же --- */
+.theme-toggle {
+    position: fixed; top: 16px; left: max(16px, calc((100vw - 1440px) / 2 + 16px)); z-index: 1;
+    display: inline-flex; padding: 3px; border: 0; border-radius: 12px; background: var(--wash); cursor: pointer;
+}
+.theme-toggle::before {
+    content: ""; position: absolute; top: 3px; left: 3px; width: 36px; height: 30px; border-radius: 9px;
+    background: var(--raised-bg); box-shadow: var(--raised-shadow); transition: transform .2s;
+}
+.theme-toggle[aria-checked="true"]::before { transform: translateX(100%); }
+.theme-toggle:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+.theme-toggle-icon {
+    position: relative; display: grid; place-items: center; width: 36px; height: 30px;
+    color: var(--text-2); transition: color .2s;
+}
+.theme-toggle:hover .theme-toggle-icon,
+.theme-toggle[aria-checked="false"] .theme-toggle-icon:first-child,
+.theme-toggle[aria-checked="true"] .theme-toggle-icon:last-child { color: var(--text); }
 
 /* --- карточка: как на экране «Войти» дашборда — тонкая рамка, большие скругления --- */
 .login-pf-page {

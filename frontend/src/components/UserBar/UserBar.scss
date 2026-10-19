@@ -1,4 +1,4 @@
-// UserBar.scss — стили шапки страницы (UserBar.jsx): название слева, кнопка выхода с именем справа.
+// UserBar.scss — стили шапки страницы (UserBar.jsx): переключатель темы слева, кнопка выхода с именем справа.
 
 @use '../../styles/mixins' as *;
 
@@ -6,7 +6,6 @@
     display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
     margin: 0 0 16px; font-size: 14px;
 }
-.app-title { margin: 0; font-size: 20px; }
 
 /* кнопка выхода — как кнопки панели фильтров (_mixins.scss, pill-button) */
 .logout-button {

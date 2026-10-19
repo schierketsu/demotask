@@ -1,9 +1,17 @@
-// LoginScreen.scss — стили экрана входа (LoginScreen.jsx): карточка посередине экрана.
+// LoginScreen.scss — стили экрана входа (LoginScreen.jsx): переключатель темы слева вверху (там же, где в шапке
+// дашборда), карточка посередине экрана.
 
 @use '../../styles/mixins' as *;
 
-.login-screen { display: grid; place-items: center; min-height: calc(100vh - 32px); }
+.login-screen {
+    display: grid; grid-template-rows: auto 1fr; min-height: calc(100vh - 32px);
+
+    > .theme-toggle { justify-self: start; }
+}
 .login-card {
+    place-self: center;
+    /* карточка — посередине всего экрана, а не места под переключателем: поднимаем на высоту строки переключателя */
+    margin-top: -36px;
     display: grid; gap: 16px; justify-items: center; width: min(400px, 100%); padding: 40px 32px;
     border: 1px solid var(--line); border-radius: 24px; text-align: center;
 

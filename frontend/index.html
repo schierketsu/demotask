@@ -5,6 +5,18 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Деградации</title>
     <link rel="icon" type="image/svg+xml" href="/icons/favicon.svg">
+    <!-- тема — до того, как браузер нарисует страницу, чтобы тёмная не «моргала» белым (src/theme.js):
+         выбор с прошлого раза, а если его нет — тема системы -->
+    <script>
+        (function () {
+            var theme = null;
+            try { theme = localStorage.getItem('theme'); } catch (e) {}
+            if (theme !== 'light' && theme !== 'dark') {
+                theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.dataset.theme = theme;
+        })();
+    </script>
 </head>
 <body>
 <!-- сюда React рисует всю страницу (src/main.jsx) -->

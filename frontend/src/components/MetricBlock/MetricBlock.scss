@@ -9,7 +9,7 @@
    (кольцо 180 + зазор 16 + легенда ~144 + поля 40);
    всё остальное место — таблице. Уже 1400px крупной таблице не хватает места на 10 колонок без прокрутки —
    тогда сводка встаёт над таблицей --- */
-.card { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 20px; min-width: 0; }
+.card { background: var(--bg); border: 1px solid var(--edge); border-radius: 12px; padding: 20px; min-width: 0; }
 .metric-card {
     display: grid; grid-template-columns: 380px minmax(0, 1fr); padding: 0;
 
@@ -18,13 +18,13 @@
     }
 }
 .metric-summary {
-    min-width: 0; padding: 20px; border-right: 1px solid var(--line);
+    min-width: 0; padding: 20px; border-right: 1px solid var(--edge);
 
     /* «Сервисы» отделены от кольца линией */
-    h3 { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+    h3 { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--edge); }
 
     @media (max-width: 1400px) {
-        border-right: 0; border-bottom: 1px solid var(--line);
+        border-right: 0; border-bottom: 1px solid var(--edge);
     }
 }
 .metric-detail { min-width: 0; padding: 20px; }
@@ -36,7 +36,7 @@
 .metric-block {
     > summary {
         display: flex; align-items: center; gap: 10px; padding: 10px 16px;
-        border: 1px solid var(--line); border-radius: 12px; background: var(--bg);
+        border: 1px solid var(--edge); border-radius: 12px; background: var(--bg);
         font-weight: 700; cursor: pointer; list-style: none; user-select: none;
 
         &::-webkit-details-marker { display: none; }   /* убираем стандартный треугольник */
@@ -44,6 +44,9 @@
         &::before { @include chevron; flex: none; transform: rotate(-45deg); transition: transform .15s; }
         &:hover { border-color: var(--text-2); }
         &:focus-visible { outline: none; border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
+
+        /* в тёмной теме обводок нет — при наведении светлеет фон; рамка фокуса с клавиатуры остаётся */
+        :root[data-theme="dark"] &:hover { border-color: transparent; background: var(--wash); }
     }
 
     &[open] > summary::before { transform: rotate(45deg); }

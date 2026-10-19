@@ -22,11 +22,11 @@
 // Выбранный элемент в панели фильтров и календарях — белая «таблетка», чуть приподнятая тенью, жирный текст.
 // $border — красить ли рамку (у элементов с рамкой), у элементов без рамки — только фон и тень
 @mixin raised($border: true) {
-    background: var(--bg);
+    background: var(--raised-bg);
     box-shadow: var(--raised-shadow);
     font-weight: 700;
     @if $border {
-        border-color: var(--raised-border);
+        border-color: var(--pill-edge);
     }
 }
 
@@ -42,6 +42,7 @@
     border-radius: 10px;
     white-space: nowrap;
     @include raised;
+    background: var(--pill-bg);   /* в тёмной теме кнопки темнее выбранного в переключателях, в светлой — тоже белые */
 }
 
 // Рамка фокуса с клавиатуры (Tab): видна только при управлении с клавиатуры, не при нажатии мышью
