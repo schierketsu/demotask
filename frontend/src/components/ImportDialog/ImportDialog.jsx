@@ -16,7 +16,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { commitImport, previewImport } from '../../api.js';
 import { stepenOf } from '../../calc.js';
-import { STEPEN_COLORS } from '../../config.js';
 import { classNames, numberFormat, recordsWord } from '../../helpers.js';
 import { formatDate } from '../../period.js';
 import { stepenVar } from '../../theme.js';
@@ -297,7 +296,7 @@ function ImportPreview({ preview, metrics, buckets }) {
 
 /**
  * Записи: строки файла по страницам — дата, сервис (под ним операция), метрика и диапазон. Диапазон — плашка
- * бледного цвета степени с цветной точкой, как ячейки таблицы и легенда на дашборде (степень — по границам
+ * бледного цвета степени, как пустые ячейки таблицы на дашборде (степень — по границам
  * по умолчанию). Только для просмотра: импортируется весь файл.
  *   preview — ответ сервера на проверку: records — строки файла, services — названия их сервисов
  */
@@ -463,12 +462,11 @@ function pageNumbers(page, pageCount) {
     return [0, null, page - 1, page, page + 1, null, pageCount - 1];
 }
 
-/** Диапазон записи «21–30%» — на бледном цвете его степени, с цветной точкой степени */
+/** Диапазон записи «21–30%» — на бледном цвете его степени */
 function RangeBadge({ bucket }) {
     const stepen = stepenOf(bucket.pct_to);
     return (
         <span className="range-badge" style={{ background: stepenVar(stepen, 'empty') }}>
-            <span className="range-dot" style={{ background: STEPEN_COLORS[stepen].color }} />
             {bucket.pct_from}–{bucket.pct_to}%
         </span>
     );
