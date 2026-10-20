@@ -31,27 +31,22 @@
     strong { font-size: 16px; }
 }
 
-/* --- карточка выбранного файла: иконка, имя и число записей, справа «Заменить»; другой файл над ней — рамка темнеет --- */
+/* --- строка выбранного файла: имя, под ним записи и даты, справа «Заменить файл». Другой файл над строкой —
+   пунктирная рамка вокруг неё (outline — вёрстку не сдвигает). На узком экране кнопка уходит под имя,
+   чтобы подпись не ломалась --- */
 .import-file {
-    display: flex; align-items: center; gap: 14px; padding: 14px 16px;
-    border: 1px solid var(--line); border-radius: 16px; background: var(--wash); transition: border-color .15s;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 12px 16px; border-radius: 12px;
 
-    &.drag-over { border-color: var(--text); }
-}
-.import-file-icon {
-    display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px;
-    background: var(--bg); color: var(--text-2);
-
-    svg { width: 22px; height: 22px; }
+    &.drag-over { outline: 2px dashed var(--text); outline-offset: 8px; }
 }
 .import-file-text {
-    display: grid; gap: 2px; flex: 1; min-width: 0;
+    display: grid; gap: 4px; flex: 1 1 240px; min-width: 0;
 
     /* длинное имя файла — с многоточием */
-    strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
-    small { color: var(--text-2); font-size: 13px; }
+    strong { overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
+    small { color: var(--text-2); font-size: 13px; font-variant-numeric: tabular-nums; }
 }
-/* «Заменить» — кнопка окна (.btn) того же размера, что «Отмена»; внутри — скрытое поле выбора файла */
+/* «Заменить файл» — кнопка окна (.btn) того же размера, что «Отмена»; внутри — скрытое поле выбора файла */
 .import-replace {
     position: relative; flex: none; cursor: pointer;
 
@@ -64,13 +59,6 @@
 /* --- что добавится --- */
 .import-preview { display: grid; gap: 16px; }
 .import-done { font-size: 16px; }
-
-/* с какой по какую дату записи — с иконкой календаря */
-.import-period {
-    display: flex; align-items: center; gap: 8px; margin: 0; font-variant-numeric: tabular-nums;
-
-    svg { flex: none; color: var(--text-2); }
-}
 
 /* ошибки в файле — в красной рамке, как сообщение об ошибке над страницей */
 .import-errors {
@@ -106,10 +94,18 @@
     color: var(--text);
 }
 
-/* страницы: слева «Показаны 1–10 из 137», посередине номера со стрелками, справа длина страницы */
+/* страницы: слева «Показаны 1–10 из 137», ровно по центру окна — номера со стрелками, справа длина страницы.
+   Сетка 1fr | auto | 1fr: крайние колонки равной ширины, поэтому номера по центру, какой бы длины ни были края.
+   Когда окно узкое и в ряд всё не помещается — строками с переносом, каждая строка тоже по центру */
 .pager {
-    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px 16px;
     font-size: 14px; font-variant-numeric: tabular-nums;
+
+    .pager-size { justify-self: end; }
+
+    @media (max-width: 820px) {
+        display: flex; flex-wrap: wrap; justify-content: center;
+    }
 }
 .pager-nav { display: flex; align-items: center; gap: 8px; }
 /* номера — как переключатель периода: на серой дорожке, открытая страница — белая «таблетка» */

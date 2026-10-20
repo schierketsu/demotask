@@ -4,9 +4,8 @@
 //   1. файл — перетащить на широкую пунктирную панель или нажать на неё и выбрать. Формат —
 //      как db/seed/degradation_case.csv: service_id, metric_id, bucket_id, case_date;
 //   2. проверка на сервере (POST /api/cases/import?dry_run=true, в базу ничего не пишется). Окно показывает:
-//      карточку файла — имя, сколько в нём записей и кнопка «Заменить» (другой файл можно и перетащить на неё), —
-//      с какой по какую дату записи, строки с ошибками и сами записи
-//      по страницам: дата, сервис, метрика, диапазон;
+//      строку файла — имя, под ним сколько записей и с какой по какую дату, справа «Заменить файл» (другой файл
+//      можно и перетащить на строку), — строки с ошибками и сами записи по страницам: дата, сервис, метрика, диапазон;
 //   3. «Импортировать N записей» — сервер проверяет файл ещё раз и записывает все строки одной транзакцией.
 //      Файл с ошибками принять нельзя: исправьте строки и выберите файл снова.
 // После записи App загружает данные дашборда заново.
@@ -30,23 +29,46 @@ const MAX_FILE_BYTES = 1024 * 1024;
 // Сколько записей на странице: варианты для выбора, первый — по умолчанию
 const PAGE_SIZES = [10, 25, 50, 100];
 
-// Иконки 16×16 линиями цвета текста — в стиле иконок кнопок панели (Filters.jsx)
-const ICONS = {
-    upload: <path d="M8 10.5V2.5M4.5 6 8 2.5 11.5 6M2.5 13.5h11" />,
-    file: <path d="M9.5 1.5H4a1 1 0 0 0-1 1v11a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V5zM9.5 1.5V5H13M5.5 8.5h5M5.5 11h5" />,
-    calendar: <path d="M3.5 3h9A1.5 1.5 0 0 1 14 4.5v8a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-8A1.5 1.5 0 0 1 3.5 3zM2 6.5h12M5 1.5v3M11 1.5v3" />,
-};
-
-/** Иконка из ICONS по имени; className — для размера и цвета */
-function Icon({ name, className }) {
+/** Иконка «загрузить» 16×16 линиями цвета текста — в стиле иконок кнопок панели (Filters.jsx) */
+function UploadIcon({ className }) {
     return (
         <svg
             className={className} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
             fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
         >
-            {ICONS[name]}
+            <path d="M8 10.5V2.5M4.5 6 8 2.5 11.5 6M2.5 13.5h11" />
         </svg>
     );
+}
+
+/**
+ * Подпись под именем файла: сколько в нём записей и с какой по какую дату — «137 записей · 01.06 — 30.09.2026».
+ * Записей — все строки с данными, и с ошибками тоже (как в «Строк с ошибками: 3 из 4»); даты — годных записей.
+ * Год у первой даты не пишем, если он тот же, что у последней
+ */
+function fileSummary(preview) {
+    const parts = [`${numberFormat.format(preview.rowCount)} ${recordsWord(preview.rowCount)}`];
+    if (preview.records.length > 0) {
+        // первая и последняя дата: строки ГГГГ-ММ-ДД сравниваются как даты
+        let first = preview.records[0].case_date;
+        let last = first;
+        for (const record of preview.records) {
+            if (record.case_date < first) {
+                first = record.case_date;
+            }
+            if (record.case_date > last) {
+                last = record.case_date;
+            }
+        }
+        if (first === last) {
+            parts.push(formatDate(first));
+        } else {
+            const sameYear = first.slice(0, 4) === last.slice(0, 4);
+            const from = sameYear ? formatDate(first).slice(0, 5) : formatDate(first);   // '01.06.2026' → '01.06'
+            parts.push(`${from} — ${formatDate(last)}`);
+        }
+    }
+    return parts.join(' · ');
 }
 
 /**
@@ -185,7 +207,7 @@ export default function ImportDialog({ metrics, buckets, onImported, onClose }) 
                             /* файла ещё нет — широкая пунктирная панель с подсказкой; нажатие открывает выбор файла */
                             <label className={classNames('drop-zone', isDragOver && 'drag-over')} {...dropHandlers}>
                                 <input type="file" accept=".csv,text/csv" className="drop-input" onChange={onFileInput} />
-                                <Icon name="upload" className="drop-icon" />
+                                <UploadIcon className="drop-icon" />
                                 <span className="drop-text">
                                     <strong>Перетащите CSV-файл сюда</strong>
                                     <span>или нажмите, чтобы выбрать</span>
@@ -193,23 +215,19 @@ export default function ImportDialog({ metrics, buckets, onImported, onClose }) 
                                 </span>
                             </label>
                         ) : (
-                            /* файл выбран — карточка: имя, сколько в нём записей (когда сервер его проверил) и «Заменить»;
-                               другой файл можно бросить прямо на неё */
+                            /* файл выбран — строка файла: имя, под ним записи и даты (когда сервер его проверил),
+                               справа «Заменить файл»; другой файл можно бросить прямо на строку */
                             <div className={classNames('import-file', isDragOver && 'drag-over')} {...dropHandlers}>
-                                <span className="import-file-icon"><Icon name="file" /></span>
                                 <span className="import-file-text">
                                     <strong>{file.name}</strong>
-                                    {/* все строки с данными, и с ошибками тоже — как в «Строк с ошибками: 3 из 4» */}
-                                    {preview !== null && (
-                                        <small>{numberFormat.format(preview.rowCount)} {recordsWord(preview.rowCount)}</small>
-                                    )}
+                                    {preview !== null && <small>{fileSummary(preview)}</small>}
                                 </span>
                                 <label className={classNames('btn', 'import-replace', isBusy && 'busy')}>
                                     <input
                                         type="file" accept=".csv,text/csv" className="drop-input" disabled={isBusy}
                                         onChange={onFileInput}
                                     />
-                                    Заменить
+                                    Заменить файл
                                 </label>
                             </div>
                         )}
@@ -244,31 +262,12 @@ export default function ImportDialog({ metrics, buckets, onImported, onClose }) 
 }
 
 /**
- * Что добавится: с какой по какую дату записи, ошибки (если есть) и сами записи.
+ * Что добавится: ошибки (если есть) и сами записи.
  *   preview — ответ сервера на проверку (api.js, previewImport); metrics, buckets — с сервера (data в App)
  */
 function ImportPreview({ preview, metrics, buckets }) {
-    // первая и последняя дата записей: строки ГГГГ-ММ-ДД сравниваются как даты
-    let firstDate = null;
-    let lastDate = null;
-    for (const record of preview.records) {
-        if (firstDate === null || record.case_date < firstDate) {
-            firstDate = record.case_date;
-        }
-        if (lastDate === null || record.case_date > lastDate) {
-            lastDate = record.case_date;
-        }
-    }
-
     return (
         <section className="import-preview">
-            {preview.total > 0 && (
-                <p className="import-period">
-                    <Icon name="calendar" />
-                    {firstDate === lastDate ? formatDate(firstDate) : `${formatDate(firstDate)} — ${formatDate(lastDate)}`}
-                </p>
-            )}
-
             {/* ошибки: файл с ними не примется — сервер пишет либо все строки, либо ни одной */}
             {preview.errorCount > 0 && (
                 <div className="import-errors" role="alert">
