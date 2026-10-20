@@ -11,7 +11,8 @@
 //      Файл с ошибками принять нельзя: исправьте строки и выберите файл снова.
 // После записи App загружает данные дашборда заново.
 //
-// Окно — стандартный <dialog>, как окно сервиса: Esc, клик по затемнению, крестик и «Отмена» закрывают его.
+// Окно — стандартный <dialog>, как окно сервиса: Esc, клик по затемнению и «Отмена» закрывают его
+// (заголовка и крестика нет).
 
 import { useEffect, useRef, useState } from 'react';
 import { commitImport, previewImport } from '../../api.js';
@@ -166,16 +167,13 @@ export default function ImportDialog({ metrics, buckets, onImported, onClose }) 
 
     return (
         <dialog
-            className="dialog import-dialog" ref={dialog} aria-labelledby="import-dialog-title" onClick={closeOnBackdrop}
+            // заголовка на экране нет — название окна только для экранного диктора
+            className="dialog import-dialog" ref={dialog} aria-label="Импорт из CSV" onClick={closeOnBackdrop}
             // файл, брошенный мимо панели, браузер не должен открывать вместо страницы
             onDragOver={function (event) { event.preventDefault(); }}
             onDrop={function (event) { event.preventDefault(); }}
         >
             <div className="dialog-body">
-                <div className="dialog-head">
-                    <h2 id="import-dialog-title" className="dialog-title">Импорт из CSV</h2>
-                    <button type="button" className="dialog-close" aria-label="Закрыть" onClick={close} />
-                </div>
 
                 {step === 'done' ? (
                     <p className="import-done" role="status">
