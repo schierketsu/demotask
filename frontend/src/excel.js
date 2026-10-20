@@ -24,9 +24,20 @@ const WASH = 'FFF4F4F2';
 const LINE = 'FFD5D8DE';
 const WHITE = 'FFFFFFFF';
 
-// Колонки листа: A — операция (в сводке и списке сервисов — степень или сервис), B — сервис,
-// с C — диапазоны по 10% (в сводке и списке сервисов — числа)
+// Колонки листа — общие для всех таблиц, поэтому таблицы стоят ровно друг под другом:
+// A — операция, B — сервис, с C — диапазоны по 10% (над ними — степени: минимальная над 0–10% и 11–20% и т.д.),
+// сразу за диапазонами — «Всего» (в сводке и списке сервисов). Сводка, сервисы и свои границы ставят каждую степень
+// в те же колонки, что и шапка детализации (stepenPlaces)
 const FIRST_VALUE_COLUMN = 3;
+const OPERATION_WIDTH = 30;
+const SERVICE_WIDTH = 38;
+const VALUE_WIDTH = 11;
+
+// Высота строк в пунктах: у Excel по умолчанию 15 — таблицы выходят тесными. Пустые строки-отступы остаются 15
+const TITLE_HEIGHT = 28;
+const BAND_HEIGHT = 26;
+const ROW_HEIGHT = 20;
+const LINE_HEIGHT = 15;   // одна строка текста — для ячеек, где длинное название переносится
 
 
 /**
@@ -45,9 +56,11 @@ export async function exportToExcel(data, period, productId, serviceBounds) {
 export function buildWorkbook(ExcelJS, data, period, productId, serviceBounds) {
     const workbook = new ExcelJS.Workbook();
     const rows = rowsOfProduct(data.rows, productId);
+    const places = stepenPlaces(data.buckets);
+    // строки шапки листа: [название, значение]
     const heading = [
-        `Период: ${periodTitle(data, period)}`,
-        `Продукт: ${productTitle(data.products, productId)}`,
+        ['Период', periodTitle(data, period)],
+        ['Продукт', productTitle(data.products, productId)],
     ];
 
     // лист 1: свои границы не учитываем — пустой serviceBounds, у всех сервисов границы по умолчанию
@@ -55,22 +68,44 @@ export function buildWorkbook(ExcelJS, data, period, productId, serviceBounds) {
         return `${range.name.toLowerCase()} ${formatRange(range)}`;
     });
     const plain = addSheet(workbook, 'Без изменений', data.buckets.length);
-    let r = writeHeading(plain, [...heading, `Границы степеней у всех сервисов по умолчанию: ${defaultBounds.join(', ')}`]);
-    writeMetrics(plain, r, data, rows, {});
+    let r = writeHeading(plain, [...heading, ['Границы степеней', `у всех сервисов по умолчанию: ${defaultBounds.join(', ')}`]]);
+    writeMetrics(plain, r, data, rows, {}, places);
+    setRowHeights(plain);
 
     // лист 2: как на странице — со своими границами у тех сервисов, которым их задали
     const customRows = rows.filter(function (row) { return hasOwnBounds(serviceBounds, row.service_id); });
     const changed = addSheet(workbook, 'С изменениями', data.buckets.length);
     const boundsNote = customRows.length > 0
-        ? `Сервисов со своими границами степеней: ${customRows.length} (таблица ниже), у остальных границы по умолчанию`
-        : 'Свои границы степеней не заданы — данные совпадают с листом «Без изменений»';
-    r = writeHeading(changed, [...heading, boundsNote]);
+        ? `свои у сервисов: ${customRows.length} (таблица ниже), у остальных — по умолчанию`
+        : 'свои не заданы — данные совпадают с листом «Без изменений»';
+    r = writeHeading(changed, [...heading, ['Границы степеней', boundsNote]]);
     if (customRows.length > 0) {
-        r = writeCustomBounds(changed, r, customRows, serviceBounds);
+        r = writeCustomBounds(changed, r, customRows, serviceBounds, places);
     }
-    writeMetrics(changed, r, data, rows, serviceBounds);
+    writeMetrics(changed, r, data, rows, serviceBounds, places);
+    setRowHeights(changed);
 
     return workbook;
+}
+
+/**
+ * Где на листе колонки каждой степени — как в шапке детализации: [{ first: 3, last: 4 }, { first: 5, last: 7 }, …]
+ * (минимальная над 0–10% и 11–20%, частичная над 21–30% … 41–50% и т.д.)
+ */
+function stepenPlaces(buckets) {
+    const spans = stepenColumnSpans(buildTableColumns(buckets));   // сколько колонок под каждой степенью: [2, 3, 3, 2]
+    const places = [];
+    let c = FIRST_VALUE_COLUMN;
+    for (const span of spans) {
+        places.push({ first: c, last: c + span - 1 });
+        c = c + span;
+    }
+    return places;
+}
+
+/** Колонка «Всего» — сразу за последней степенью */
+function totalColumnOf(places) {
+    return places[places.length - 1].last + 1;
 }
 
 
@@ -102,45 +137,59 @@ function productTitle(products, productId) {
     return product !== undefined ? product.name : 'Все';
 }
 
-/** Новый лист: без сетки Excel (у таблиц свои рамки), ширина колонок и альбомная печать на ширину страницы */
+/**
+ * Новый лист: без сетки Excel (у таблиц свои рамки), ширина колонок и альбомная печать на ширину страницы
+ * с узкими полями, по центру листа
+ */
 function addSheet(workbook, title, bucketCount) {
     const sheet = workbook.addWorksheet(title, {
         views: [{ showGridLines: false }],
-        pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 },
+        pageSetup: {
+            orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
+            margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
+        },
     });
-    sheet.getColumn(1).width = 34;
-    sheet.getColumn(2).width = 32;
-    for (let i = 0; i < bucketCount; i++) {
-        sheet.getColumn(FIRST_VALUE_COLUMN + i).width = 13;
+    sheet.getColumn(1).width = OPERATION_WIDTH;
+    sheet.getColumn(2).width = SERVICE_WIDTH;
+    // диапазоны и «Всего» за ними — одной ширины
+    for (let i = 0; i <= bucketCount; i++) {
+        sheet.getColumn(FIRST_VALUE_COLUMN + i).width = VALUE_WIDTH;
     }
     return sheet;
 }
 
-/** Заголовок листа и строки под ним (период, продукт, границы). Возвращает номер первой свободной строки */
+/**
+ * Заголовок листа и под ним строки «название — значение» (период, продукт, границы): название серым в колонке A,
+ * значение жирным с колонки B. Возвращает номер первой свободной строки
+ */
 function writeHeading(sheet, lines) {
-    put(sheet, 1, 1, 'Деградация сервисов', { bold: true, size: 14 });
+    put(sheet, 1, 1, 'Деградация сервисов', { bold: true, size: 16 });
+    sheet.getRow(1).height = TITLE_HEIGHT;
     for (let i = 0; i < lines.length; i++) {
-        put(sheet, 2 + i, 1, lines[i]);
+        put(sheet, 2 + i, 1, lines[i][0], { color: TEXT_2 });
+        put(sheet, 2 + i, 2, lines[i][1], { bold: true });   // длинное значение уходит в пустые ячейки правее
     }
     return lines.length + 3;   // заголовок, строки и одна пустая
 }
 
-/** Таблица своих границ: сервис и диапазон каждой степени («31–60%» или «отключена») */
-function writeCustomBounds(sheet, r, customRows, serviceBounds) {
-    put(sheet, r, 1, 'Свои границы степеней', { bold: true });
+/** Таблица своих границ: операция, сервис и диапазон каждой степени («31–60%» или «отключена») под её колонками */
+function writeCustomBounds(sheet, r, customRows, serviceBounds, places) {
+    put(sheet, r, 1, 'Свои границы степеней', SECTION);
     r++;
-    put(sheet, r, 1, 'Сервис', GRAY);
+    put(sheet, r, 1, 'Операция', GRAY);
+    put(sheet, r, 2, 'Сервис', GRAY);
     for (let k = 0; k < 4; k++) {
-        put(sheet, r, 2 + k, STEPEN_NAMES[k], stepenHeader(k));
+        putMerged(sheet, r, places[k].first, r, places[k].last, STEPEN_NAMES[k], stepenHeader(k));
     }
     r++;
 
     for (const row of customRows) {
-        put(sheet, r, 1, row.service, { border: true });
+        putName(sheet, r, 1, row.operation, OPERATION_WIDTH, { border: true });
+        putName(sheet, r, 2, row.service, SERVICE_WIDTH, { border: true });
         const ranges = getStepenRanges(boundsOf(serviceBounds, row.service_id));
         for (let k = 0; k < 4; k++) {
             const isOff = ranges[k].unused;
-            put(sheet, r, 2 + k, isOff ? 'отключена' : formatRange(ranges[k]), {
+            putMerged(sheet, r, places[k].first, r, places[k].last, isOff ? 'отключена' : formatRange(ranges[k]), {
                 align: 'center', border: true, color: isOff ? TEXT_2 : TEXT,
             });
         }
@@ -154,29 +203,36 @@ function writeCustomBounds(sheet, r, customRows, serviceBounds) {
 // Блок метрики: сводка, сервисы и детализация — друг под другом
 // ============================================================================
 
-/** Блоки всех метрик подряд, начиная со строки r */
-function writeMetrics(sheet, r, data, rows, serviceBounds) {
-    const lastColumn = FIRST_VALUE_COLUMN + data.buckets.length - 1;
-    for (const metric of data.metrics) {
-        // название метрики — серой полосой на всю ширину детализации
-        putMerged(sheet, r, 1, r, lastColumn, metric.label, { bold: true, size: 13, fill: WASH });
+/** Блоки всех метрик подряд, начиная со строки r. При печати каждая следующая метрика начинается с новой страницы */
+function writeMetrics(sheet, r, data, rows, serviceBounds, places) {
+    let lastRow = 0;   // последняя строка таблиц предыдущей метрики
+    for (let m = 0; m < data.metrics.length; m++) {
+        const metric = data.metrics[m];
+        if (m > 0) {
+            // разрыв — сразу под таблицей, а не под отступом перед полосой метрики: если таблица заняла страницу
+            // целиком, пустые строки-отступы ушли бы на отдельную пустую страницу
+            sheet.getRow(lastRow).addPageBreak();
+        }
+        // название метрики — серой полосой на всю ширину таблиц, вместе с «Всего»
+        putMerged(sheet, r, 1, r, totalColumnOf(places), metric.label, { bold: true, size: 13, fill: WASH });
+        sheet.getRow(r).height = BAND_HEIGHT;
         r += 2;
+        // по строке на сервис, в том же порядке, что rows
         const stats = buildServiceStats(rows, metric, data.buckets, serviceBounds);
-        r = writeSummary(sheet, r, stats);
-        r = writeServices(sheet, r, stats);
-        r = writeDetail(sheet, r, metric, data.buckets, rows, serviceBounds);
+        r = writeSummary(sheet, r, stats, places);
+        r = writeServices(sheet, r, rows, stats, places);
+        r = writeDetail(sheet, r, metric, data.buckets, rows, serviceBounds, places);
+        lastRow = r - 2;   // writeDetail вернула строку после пустой строки-отступа
         r++;
     }
 }
 
-/** Сводка — то, что на кольце и в легенде: сколько аварий каждой степени и какая это доля */
-function writeSummary(sheet, r, stats) {
-    put(sheet, r, 1, 'Сводка по степеням', { bold: true });
-    r++;
-    const titles = ['Степень', 'Диапазон', 'Аварий', 'Доля'];
-    for (let i = 0; i < titles.length; i++) {
-        put(sheet, r, 1 + i, titles[i], GRAY);
-    }
+/**
+ * Сводка — то, что на кольце и в легенде: по колонке на степень (под её колонками в детализации) и «Всего» справа;
+ * строки — диапазон степени, сколько аварий и какая это доля
+ */
+function writeSummary(sheet, r, stats, places) {
+    put(sheet, r, 1, 'Сводка по степеням', SECTION);
     r++;
 
     const counts = [0, 0, 0, 0];
@@ -192,46 +248,80 @@ function writeSummary(sheet, r, stats) {
     }
 
     const ranges = getStepenRanges();   // подписи диапазонов — по умолчанию, как в легенде на странице
+    const totalColumn = totalColumnOf(places);
+    const center = { align: 'center', border: true };
+
+    putMerged(sheet, r, 1, r, 2, 'Степень', GRAY);
     for (let k = 0; k < 4; k++) {
-        put(sheet, r, 1, ranges[k].name, stepenHeader(k));
-        put(sheet, r, 2, formatRange(ranges[k]), { border: true });
-        put(sheet, r, 3, counts[k], { align: 'right', border: true });
-        put(sheet, r, 4, share(counts[k]), { align: 'right', border: true, numFmt: '0%' });
-        r++;
+        putMerged(sheet, r, places[k].first, r, places[k].last, ranges[k].name, stepenHeader(k));
     }
-    put(sheet, r, 1, 'Всего', GRAY);
-    put(sheet, r, 2, '', GRAY);
-    put(sheet, r, 3, total, { ...GRAY, align: 'right' });
-    put(sheet, r, 4, share(total), { ...GRAY, align: 'right', numFmt: '0%' });
+    put(sheet, r, totalColumn, 'Всего', { ...GRAY, align: 'center' });
+    r++;
+
+    putMerged(sheet, r, 1, r, 2, 'Диапазон', GRAY);
+    for (let k = 0; k < 4; k++) {
+        putMerged(sheet, r, places[k].first, r, places[k].last, formatRange(ranges[k]), { ...center, color: TEXT_2 });
+    }
+    put(sheet, r, totalColumn, '', GRAY);
+    r++;
+
+    // число аварий — на бледном цвете степени, как строка «Всего» в детализации
+    putMerged(sheet, r, 1, r, 2, 'Аварий', GRAY);
+    for (let k = 0; k < 4; k++) {
+        const fill = excelColor(STEPEN_COLORS[k].totalBackground);
+        putMerged(sheet, r, places[k].first, r, places[k].last, counts[k], { ...center, bold: true, fill: fill });
+    }
+    put(sheet, r, totalColumn, total, { ...GRAY, align: 'center' });
+    r++;
+
+    putMerged(sheet, r, 1, r, 2, 'Доля', GRAY);
+    for (let k = 0; k < 4; k++) {
+        putMerged(sheet, r, places[k].first, r, places[k].last, share(counts[k]), { ...center, numFmt: '0%' });
+    }
+    put(sheet, r, totalColumn, share(total), { ...GRAY, align: 'center', numFmt: '0%' });
     return r + 2;
 }
 
-/** Сервисы — то, что на полосах под кольцом: только сервисы с авариями, от большего к меньшему */
-function writeServices(sheet, r, stats) {
-    put(sheet, r, 1, 'Сервисы', { bold: true });
+/**
+ * Сервисы — то, что на полосах под кольцом: только сервисы с авариями, от большего к меньшему. Число аварий
+ * каждой степени — под колонками степени, раскрашено как в детализации; «Всего» — справа.
+ *   rows — сервисы, stats — их статистика из buildServiceStats (по строке на сервис, в том же порядке)
+ */
+function writeServices(sheet, r, rows, stats, places) {
+    put(sheet, r, 1, 'Сервисы', SECTION);
     r++;
 
-    const services = stats.filter(function (item) { return sum(item.stepenCounts) > 0; });
-    services.sort(function (a, b) { return sum(b.stepenCounts) - sum(a.stepenCounts); });
+    const services = [];
+    for (let i = 0; i < rows.length; i++) {
+        const total = sum(stats[i].stepenCounts);
+        if (total > 0) {
+            services.push({ row: rows[i], stepenCounts: stats[i].stepenCounts, total: total });
+        }
+    }
+    // от большего к меньшему; у сервисов с равным числом сохраняется порядок таблицы
+    services.sort(function (a, b) { return b.total - a.total; });
     if (services.length === 0) {
         put(sheet, r, 1, 'Аварий нет', { color: TEXT_2 });
         return r + 2;
     }
 
-    put(sheet, r, 1, 'Сервис', GRAY);
-    put(sheet, r, 2, 'Всего', { ...GRAY, align: 'right' });
+    const totalColumn = totalColumnOf(places);
+    put(sheet, r, 1, 'Операция', GRAY);
+    put(sheet, r, 2, 'Сервис', GRAY);
     for (let k = 0; k < 4; k++) {
-        put(sheet, r, 3 + k, STEPEN_NAMES[k], stepenHeader(k));
+        putMerged(sheet, r, places[k].first, r, places[k].last, STEPEN_NAMES[k], stepenHeader(k));
     }
+    put(sheet, r, totalColumn, 'Всего', { ...GRAY, align: 'center' });
     r++;
 
     for (const item of services) {
-        put(sheet, r, 1, item.name, { border: true });
-        put(sheet, r, 2, sum(item.stepenCounts), { bold: true, align: 'right', border: true });
+        putName(sheet, r, 1, item.row.operation, OPERATION_WIDTH, { border: true });
+        putName(sheet, r, 2, item.row.service, SERVICE_WIDTH, { fill: WASH, border: true });
         for (let k = 0; k < 4; k++) {
             const count = item.stepenCounts[k];
-            put(sheet, r, 3 + k, count, { align: 'center', border: true, color: count ? TEXT : TEXT_2 });
+            putMerged(sheet, r, places[k].first, r, places[k].last, count, { ...countStyle(count, k), align: 'center', border: true });
         }
+        put(sheet, r, totalColumn, item.total, { ...GRAY, align: 'center' });
         r++;
     }
     return r + 1;
@@ -242,20 +332,17 @@ function writeServices(sheet, r, stats) {
  * диапазонов, строка «Всего», продукты с подытогом, в них операции и сервисы. Ячейка сервиса красится цветом
  * его степени (у сервиса со своими границами — по ним), а сам сервис со своими границами — в чёрной рамке
  */
-function writeDetail(sheet, r, metric, buckets, rows, serviceBounds) {
-    put(sheet, r, 1, 'Детализация', { bold: true });
+function writeDetail(sheet, r, metric, buckets, rows, serviceBounds, places) {
+    put(sheet, r, 1, 'Детализация', SECTION);
     r++;
 
     const columns = buildTableColumns(buckets);
-    const spans = stepenColumnSpans(columns);   // сколько колонок под каждой степенью: [2, 3, 3, 2]
 
     // шапка в две строки: «Операция» и «Сервис» на обе, названия степеней над их колонками, под ними — диапазоны
     putMerged(sheet, r, 1, r + 1, 1, 'Операция', GRAY);
     putMerged(sheet, r, 2, r + 1, 2, 'Сервис', GRAY);
-    let c = FIRST_VALUE_COLUMN;
     for (let k = 0; k < 4; k++) {
-        putMerged(sheet, r, c, r, c + spans[k] - 1, STEPEN_NAMES[k], { ...stepenHeader(k), align: 'center' });
-        c = c + spans[k];
+        putMerged(sheet, r, places[k].first, r, places[k].last, STEPEN_NAMES[k], stepenHeader(k));
     }
     for (let i = 0; i < columns.length; i++) {
         const fill = excelColor(STEPEN_COLORS[columns[i].stepen].emptyCellBackground);
@@ -263,28 +350,28 @@ function writeDetail(sheet, r, metric, buckets, rows, serviceBounds) {
     }
     r += 2;
 
-    r = writeStepenTotals(sheet, r, 'Всего', sumByStepen(rows, metric, buckets, serviceBounds), spans, true);
+    r = writeStepenTotals(sheet, r, 'Всего', sumByStepen(rows, metric, buckets, serviceBounds), places, true);
 
     for (const productRows of groupBy(rows, function (row) { return row.product_id; })) {
         const productTotals = sumByStepen(productRows, metric, buckets, serviceBounds);
-        r = writeStepenTotals(sheet, r, productRows[0].product, productTotals, spans, false);
+        r = writeStepenTotals(sheet, r, productRows[0].product, productTotals, places, false);
 
         for (const operationRows of groupBy(productRows, function (row) { return row.operation_id; })) {
             // название операции — один раз, в ячейку высотой во все её сервисы
-            putMerged(sheet, r, 1, r + operationRows.length - 1, 1, operationRows[0].operation, { border: true, wrap: true });
+            const operation = operationRows[0].operation;
+            putMerged(sheet, r, 1, r + operationRows.length - 1, 1, operation, { border: true, wrap: true });
+            if (operationRows.length === 1) {
+                fitHeight(sheet, r, operation, OPERATION_WIDTH);   // у ячейки в одну строку высоты может не хватить
+            }
 
             for (const row of operationRows) {
                 const bounds = boundsOf(serviceBounds, row.service_id);
-                put(sheet, r, 2, row.service, {
-                    fill: WASH, wrap: true, border: hasOwnBounds(serviceBounds, row.service_id) ? CUSTOM_BORDER : true,
+                putName(sheet, r, 2, row.service, SERVICE_WIDTH, {
+                    fill: WASH, border: hasOwnBounds(serviceBounds, row.service_id) ? CUSTOM_BORDER : true,
                 });
                 const counts = row.counts[metric.id];
                 for (let i = 0; i < counts.length; i++) {
-                    const colors = STEPEN_COLORS[stepenOf(columns[i].to, bounds)];
-                    // есть аварии — цвет степени и жирное число; нет — бледный оттенок и серый ноль
-                    const style = counts[i]
-                        ? { bold: true, fill: excelColor(colors.cellBackground) }
-                        : { color: TEXT_2, fill: excelColor(colors.emptyCellBackground) };
+                    const style = countStyle(counts[i], stepenOf(columns[i].to, bounds));
                     put(sheet, r, FIRST_VALUE_COLUMN + i, counts[i], { ...style, align: 'center', border: true });
                 }
                 r++;
@@ -298,13 +385,11 @@ function writeDetail(sheet, r, metric, buckets, rows, serviceBounds) {
  * Строка итога («Всего» или продукт): название на две колонки и по объединённой ячейке на степень.
  * isColored — у «Всего» ячейки бледного цвета степени, у продукта — серые, как на странице
  */
-function writeStepenTotals(sheet, r, title, stepenCounts, spans, isColored) {
+function writeStepenTotals(sheet, r, title, stepenCounts, places, isColored) {
     putMerged(sheet, r, 1, r, 2, title, GRAY);
-    let c = FIRST_VALUE_COLUMN;
     for (let k = 0; k < 4; k++) {
         const fill = isColored ? excelColor(STEPEN_COLORS[k].totalBackground) : WASH;
-        putMerged(sheet, r, c, r, c + spans[k] - 1, stepenCounts[k], { ...GRAY, fill: fill, align: 'center' });
-        c = c + spans[k];
+        putMerged(sheet, r, places[k].first, r, places[k].last, stepenCounts[k], { ...GRAY, fill: fill, align: 'center' });
     }
     return r + 1;
 }
@@ -316,11 +401,51 @@ function writeStepenTotals(sheet, r, title, stepenCounts, spans, isColored) {
 
 // Готовые наборы оформления для put
 const GRAY = { bold: true, fill: WASH, border: true };   // заголовки колонок, строки «Всего» и продуктов
+const SECTION = { bold: true, size: 12 };                // подзаголовки: «Сводка по степеням», «Сервисы», …
 const CUSTOM_BORDER = allSides({ style: 'medium', color: { argb: TEXT } });   // сервис со своими границами
 
-/** Заголовок степени: её цвет, белый жирный текст — как шапка таблицы на странице */
+/** Заголовок степени: её цвет, белый жирный текст по центру — как шапка таблицы на странице */
 function stepenHeader(k) {
-    return { bold: true, color: WHITE, fill: excelColor(STEPEN_COLORS[k].color), border: true };
+    return { bold: true, color: WHITE, fill: excelColor(STEPEN_COLORS[k].color), border: true, align: 'center' };
+}
+
+/**
+ * Раскраска числа аварий степени k — как в таблице на странице: есть аварии — цвет степени и жирное число;
+ * нет — бледный оттенок и серый ноль
+ */
+function countStyle(count, k) {
+    const colors = STEPEN_COLORS[k];
+    return count
+        ? { bold: true, fill: excelColor(colors.cellBackground) }
+        : { color: TEXT_2, fill: excelColor(colors.emptyCellBackground) };
+}
+
+/** Название операции или сервиса в колонку шириной width: длинное переносится, и строка становится выше */
+function putName(sheet, row, col, text, width, style) {
+    put(sheet, row, col, text, { ...style, wrap: true });
+    fitHeight(sheet, row, text, width);
+}
+
+/**
+ * Сделать строку row выше, если text не влезает в колонку шириной width одной строкой. Excel сам высоту строки
+ * под перенесённый текст не подбирает, если она задана (а её задаём всем строкам — setRowHeights)
+ */
+function fitHeight(sheet, row, text, width) {
+    // ширина колонки в Excel — в цифрах «0»; кириллица шире, плюс отступы по краям — влезает примерно width − 4 букв
+    const lines = Math.ceil(String(text).length / (width - 4));
+    if (lines > 1) {
+        const sheetRow = sheet.getRow(row);
+        sheetRow.height = Math.max(sheetRow.height || ROW_HEIGHT, lines * LINE_HEIGHT + 5);
+    }
+}
+
+/** Всем строкам с содержимым, кроме тех, кому высоту уже задали, — ROW_HEIGHT; пустые строки-отступы остаются ниже */
+function setRowHeights(sheet) {
+    sheet.eachRow(function (row) {
+        if (!row.height) {
+            row.height = ROW_HEIGHT;
+        }
+    });
 }
 
 /**
