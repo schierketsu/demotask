@@ -6,6 +6,10 @@
        и строки «сервис → сколько случаев деградации в каждом диапазоне по каждой метрике».
        Месяц, год или произвольный диапазон выбирают на странице — сюда всегда приходят две даты.
 
+  GET /api/cases?from=2026-10-01&to=2026-10-31
+       случаи деградации за период — каждый отдельной строкой с его id: для Excel (подсказки у ячеек детализации
+       и лист «Сырые данные»). Обе даты обязательны
+
   POST /api/cases — записать новый случай деградации (демонстрационная запись, только для роли editor):
        {"service_id": 4, "metric_id": 1, "bucket_id": 3, "case_date": "2026-10-14"}
        → 201 и созданная запись с id, created_at и created_by
@@ -41,7 +45,9 @@ from starlette.exceptions import HTTPException
 
 from .auth import User, can_read, can_write
 from .cases import ImportFileError, case_date_error, check_rows, parse_csv, parse_date, summarize
-from .data import NoCasesError, ServiceUnavailableError, add_case, add_cases, case_references, dashboard_data
+from .data import (
+    NoCasesError, ServiceUnavailableError, add_case, add_cases, case_references, cases_in_period, dashboard_data,
+)
 from .db import connect
 
 # журнал uvicorn: что сюда записать, видно в docker compose logs backend
@@ -66,6 +72,18 @@ def respond(status: int, body: dict, headers: dict | None = None) -> JSONRespons
     return JSONResponse(body, status_code=status, headers={"Cache-Control": "no-store", **(headers or {})})
 
 
+def parse_period(period_from: str, period_to: str) -> tuple[date, date]:
+    """Даты периода из адреса ('2026-10-01', '2026-10-31') → (начало, конец). Не даты ГГГГ-ММ-ДД или начало
+    позже конца — 400 (ответ {"error": "…"} соберёт http_error ниже)"""
+    start = parse_date(period_from)
+    end = parse_date(period_to)
+    if start is None or end is None:
+        raise HTTPException(status_code=400, detail=BAD_DATES)
+    if start > end:
+        raise HTTPException(status_code=400, detail="Начало периода позже его конца")
+    return start, end
+
+
 @app.get("/api/data", dependencies=[Depends(can_read)])
 def get_data(
     # from — зарезервированное слово Python, поэтому в коде period_from, а в адресе — from (alias)
@@ -77,12 +95,7 @@ def get_data(
     if period_from == "" and period_to == "":
         start = end = None
     else:
-        start = parse_date(period_from)
-        end = parse_date(period_to)
-        if start is None or end is None:
-            return respond(400, {"error": BAD_DATES})
-        if start > end:
-            return respond(400, {"error": "Начало периода позже его конца"})
+        start, end = parse_period(period_from, period_to)
 
     try:
         # with — соединение закроется само, даже если запрос упадёт с ошибкой
@@ -97,6 +110,23 @@ def get_data(
         return respond(500, {"error": "Ошибка базы данных"})
 
     return respond(200, body)   # 200 — всё хорошо, отдаём данные в JSON
+
+
+@app.get("/api/cases", dependencies=[Depends(can_read)])
+def get_cases(
+    period_from: str = Query("", alias="from"),
+    period_to: str = Query("", alias="to"),
+) -> JSONResponse:
+    """Случаи деградации за период по одному, с id: /api/cases?from=2026-10-01&to=2026-10-31 → {"cases": […]}.
+    Их берёт выгрузка в Excel (frontend/src/excel.js): подсказки у ячеек детализации и лист «Сырые данные»"""
+    start, end = parse_period(period_from, period_to)
+    try:
+        with connect() as conn:
+            cases = cases_in_period(conn, start, end)
+    except psycopg.Error:
+        logger.exception("Ошибка базы данных")
+        return respond(500, {"error": "Ошибка базы данных"})
+    return respond(200, {"cases": cases})
 
 
 class NewCase(BaseModel):

@@ -86,9 +86,11 @@ CREATE TABLE service (
 
 -- Случай деградации сервиса. Глубина деградации — не точный процент, а диапазон с шагом 10
 -- (bucket_id → «21-30%» и т.п.): авария определяется тем, в какой диапазон она попала.
--- case_date — день, когда случай произошёл (по нему дашборд показывает данные за выбранный месяц)
+-- case_date — день, когда случай произошёл (по нему дашборд показывает данные за выбранный месяц).
+-- id — номер случая, его выдаёт только база (ALWAYS). Уникальности по сервису, метрике, диапазону и дате нет
+-- намеренно: два одинаковых случая в один день — два разных случая с разными id (их видно в Excel, лист «Сырые данные»)
 CREATE TABLE degradation_case (
-    id         int GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    id         bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     service_id int         NOT NULL REFERENCES service (id),
     metric_id  int         NOT NULL REFERENCES metric (id),
     bucket_id  int         NOT NULL REFERENCES bucket (id),

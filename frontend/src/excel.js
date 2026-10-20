@@ -1,12 +1,15 @@
 // excel.js — выгрузка в Excel по кнопке «Экспорт» в панели фильтров: то, что на странице, за выбранный период
-// и продукт. В файле два листа:
+// и продукт. В файле три листа:
 //   «Без изменений» — у всех сервисов границы степеней по умолчанию, как будто в окне сервиса ничего не меняли
 //   «С изменениями» — со своими границами сервисов, как сейчас на странице
-// На каждом листе по каждой метрике («Без учета 5 минут», «С учетом 5 минут») — то же, что в её блоке:
-// сводка по степеням (кольцо), сервисы (полосы под кольцом) и детализация (таблица).
+//   «Сырые данные»  — случаи деградации по одному: id, дата, продукт, операция, сервис, метрика, диапазон
+// На первых двух листах по каждой метрике («Без учета 5 минут», «С учетом 5 минут») — то же, что в её блоке:
+// сводка по степеням (кольцо), сервисы (полосы под кольцом) и детализация (таблица). У ненулевых ячеек детализации —
+// подсказка (примечание Excel): случаи, из которых сложилось число, «#1042 · 07.10.2026».
 //
 // Файл собирает библиотека ExcelJS прямо в браузере. Она большая, поэтому загружается только по нажатию кнопки:
 // import() внутри функции — Vite выносит её в отдельный файл, и страница без неё открывается так же быстро.
+// Так же загружается JSZip — им готовый файл чуть правится (fitNotes).
 
 import {
     boundsOf, buildServiceStats, buildTableColumns, columnTitle, formatRange, getStepenRanges, hasOwnBounds,
@@ -39,24 +42,45 @@ const BAND_HEIGHT = 26;
 const ROW_HEIGHT = 20;
 const LINE_HEIGHT = 15;   // одна строка текста — для ячеек, где длинное название переносится
 
+// Лист «Сырые данные»: колонки — поля случая, как в базе, и их ширина
+const RAW_COLUMNS = [
+    { title: 'id', width: 12 },
+    { title: 'case_date', width: 13 },
+    { title: 'product', width: 22 },
+    { title: 'operation', width: OPERATION_WIDTH },
+    { title: 'service', width: SERVICE_WIDTH },
+    { title: 'metric', width: 34 },
+    { title: 'bucket', width: VALUE_WIDTH },
+];
+
+// Случаи с сервера не сходятся с числами на странице — файл не собираем (см. groupCases)
+const STALE_DATA = 'данные в базе изменились после загрузки страницы — обновите страницу и повторите экспорт';
+
 
 /**
  * Собрать файл и отдать его браузеру на скачивание: «Деградации_2026-10-01_2026-10-31.xlsx».
  *   data — данные с сервера за загруженный период; period — выбранный период (period.js);
- *   productId — выбранный продукт ('' — все); serviceBounds — свои границы сервисов (App.jsx)
+ *   productId — выбранный продукт ('' — все); serviceBounds — свои границы сервисов (App.jsx);
+ *   cases — случаи по одному за тот же период data.from … data.to (api.js, loadCases)
  */
-export async function exportToExcel(data, period, productId, serviceBounds) {
-    const { default: ExcelJS } = await import('exceljs');
-    const workbook = buildWorkbook(ExcelJS, data, period, productId, serviceBounds);
-    const buffer = await workbook.xlsx.writeBuffer();
+export async function exportToExcel(data, period, productId, serviceBounds, cases) {
+    const [{ default: ExcelJS }, { default: JSZip }] = await Promise.all([import('exceljs'), import('jszip')]);
+    const buffer = await buildFile(ExcelJS, JSZip, data, period, productId, serviceBounds, cases);
     download(buffer, `Деградации_${data.from}_${data.to}.xlsx`);
 }
 
-/** Книга из двух листов. ExcelJS приходит параметром — его загружает exportToExcel */
-export function buildWorkbook(ExcelJS, data, period, productId, serviceBounds) {
+/** Содержимое файла .xlsx. Библиотеки приходят параметрами — их загружает exportToExcel */
+export async function buildFile(ExcelJS, JSZip, data, period, productId, serviceBounds, cases) {
+    const workbook = buildWorkbook(ExcelJS, data, period, productId, serviceBounds, cases);
+    return fitNotes(JSZip, await workbook.xlsx.writeBuffer());
+}
+
+/** Книга из трёх листов */
+export function buildWorkbook(ExcelJS, data, period, productId, serviceBounds, cases) {
     const workbook = new ExcelJS.Workbook();
     const rows = rowsOfProduct(data.rows, productId);
     const places = stepenPlaces(data.buckets);
+    const raw = groupCases(cases, data, rows);   // случаи сервисов из rows — списком и по ячейкам детализации
     // строки шапки листа: [название, значение]
     const heading = [
         ['Период', periodTitle(data, period)],
@@ -69,7 +93,7 @@ export function buildWorkbook(ExcelJS, data, period, productId, serviceBounds) {
     });
     const plain = addSheet(workbook, 'Без изменений', data.buckets.length);
     let r = writeHeading(plain, [...heading, ['Границы степеней', `у всех сервисов по умолчанию: ${defaultBounds.join(', ')}`]]);
-    writeMetrics(plain, r, data, rows, {}, places);
+    writeMetrics(plain, r, data, rows, {}, places, raw.byCell);
     setRowHeights(plain);
 
     // лист 2: как на странице — со своими границами у тех сервисов, которым их задали
@@ -82,10 +106,67 @@ export function buildWorkbook(ExcelJS, data, period, productId, serviceBounds) {
     if (customRows.length > 0) {
         r = writeCustomBounds(changed, r, customRows, serviceBounds, places);
     }
-    writeMetrics(changed, r, data, rows, serviceBounds, places);
+    writeMetrics(changed, r, data, rows, serviceBounds, places, raw.byCell);
     setRowHeights(changed);
 
+    // лист 3: случаи по одному — те же, что в подсказках у ячеек детализации
+    const rawSheet = addRawSheet(workbook);
+    r = writeHeading(rawSheet, heading);
+    writeRawCases(rawSheet, r, raw.list, data, rows);
+    setRowHeights(rawSheet);
+
     return workbook;
+}
+
+/** Ключ ячейки детализации — сервис, метрика и диапазон: '4|1|3' */
+function cellKey(serviceId, metricId, bucketId) {
+    return `${serviceId}|${metricId}|${bucketId}`;
+}
+
+/**
+ * Случаи по одному (ответ /api/cases, по дате, затем по id) → { list, byCell }:
+ *   list   — случаи сервисов из rows (с учётом фильтра «Продукт»), в том же порядке — для листа «Сырые данные»;
+ *   byCell — они же по ячейкам детализации: cellKey → [случаи] — для подсказок.
+ * Случаи сверяются с числами, по которым построены таблицы (data): в каждой ячейке их должно быть ровно столько,
+ * сколько в ней насчитал сервер. Если между загрузкой страницы и экспортом в базе что-то поменялось (например, импорт
+ * в другой вкладке), подсказки разошлись бы с числами в ячейках — тогда ошибка, и файл не собирается
+ */
+function groupCases(cases, data, rows) {
+    const knownServices = new Set(data.rows.map(function (row) { return row.service_id; }));
+    const shownServices = new Set(rows.map(function (row) { return row.service_id; }));
+    const list = [];
+    const byCell = new Map();
+    for (const item of cases) {
+        if (!knownServices.has(item.service_id)) {
+            throw new Error(STALE_DATA);   // сервис появился уже после загрузки страницы
+        }
+        if (!shownServices.has(item.service_id)) {
+            continue;   // сервис другого продукта
+        }
+        list.push(item);
+        const key = cellKey(item.service_id, item.metric_id, item.bucket_id);
+        if (!byCell.has(key)) {
+            byCell.set(key, []);
+        }
+        byCell.get(key).push(item);
+    }
+
+    let matched = 0;   // сколько случаев попало в ячейки таблиц
+    for (const row of rows) {
+        for (const metric of data.metrics) {
+            for (let i = 0; i < data.buckets.length; i++) {
+                const cellCases = byCell.get(cellKey(row.service_id, metric.id, data.buckets[i].id)) || [];
+                if (cellCases.length !== row.counts[metric.id][i]) {
+                    throw new Error(STALE_DATA);
+                }
+                matched = matched + cellCases.length;
+            }
+        }
+    }
+    if (matched !== list.length) {
+        throw new Error(STALE_DATA);   // случай с метрикой или диапазоном, которых нет на странице
+    }
+    return { list: list, byCell: byCell };
 }
 
 /**
@@ -138,17 +219,22 @@ function productTitle(products, productId) {
 }
 
 /**
- * Новый лист: без сетки Excel (у таблиц свои рамки), ширина колонок и альбомная печать на ширину страницы
+ * Настройки листа, общие для всех трёх: без сетки Excel (у таблиц свои рамки) и альбомная печать на ширину страницы
  * с узкими полями, по центру листа
  */
-function addSheet(workbook, title, bucketCount) {
-    const sheet = workbook.addWorksheet(title, {
+function sheetOptions() {
+    return {
         views: [{ showGridLines: false }],
         pageSetup: {
             orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0, horizontalCentered: true,
             margins: { left: 0.4, right: 0.4, top: 0.5, bottom: 0.5, header: 0.3, footer: 0.3 },
         },
-    });
+    };
+}
+
+/** Новый лист «Без изменений» или «С изменениями» и ширина его колонок */
+function addSheet(workbook, title, bucketCount) {
+    const sheet = workbook.addWorksheet(title, sheetOptions());
     sheet.getColumn(1).width = OPERATION_WIDTH;
     sheet.getColumn(2).width = SERVICE_WIDTH;
     // диапазоны и «Всего» за ними — одной ширины
@@ -203,8 +289,11 @@ function writeCustomBounds(sheet, r, customRows, serviceBounds, places) {
 // Блок метрики: сводка, сервисы и детализация — друг под другом
 // ============================================================================
 
-/** Блоки всех метрик подряд, начиная со строки r. При печати каждая следующая метрика начинается с новой страницы */
-function writeMetrics(sheet, r, data, rows, serviceBounds, places) {
+/**
+ * Блоки всех метрик подряд, начиная со строки r. При печати каждая следующая метрика начинается с новой страницы.
+ * byCell — случаи по ячейкам детализации (groupCases) — для подсказок
+ */
+function writeMetrics(sheet, r, data, rows, serviceBounds, places, byCell) {
     let lastRow = 0;   // последняя строка таблиц предыдущей метрики
     for (let m = 0; m < data.metrics.length; m++) {
         const metric = data.metrics[m];
@@ -221,7 +310,7 @@ function writeMetrics(sheet, r, data, rows, serviceBounds, places) {
         const stats = buildServiceStats(rows, metric, data.buckets, serviceBounds);
         r = writeSummary(sheet, r, stats, places);
         r = writeServices(sheet, r, rows, stats, places);
-        r = writeDetail(sheet, r, metric, data.buckets, rows, serviceBounds, places);
+        r = writeDetail(sheet, r, metric, data.buckets, rows, serviceBounds, places, byCell);
         lastRow = r - 2;   // writeDetail вернула строку после пустой строки-отступа
         r++;
     }
@@ -330,9 +419,11 @@ function writeServices(sheet, r, rows, stats, places) {
 /**
  * Детализация — таблица «как в Excel» с той же раскраской, что на странице: шапка со степенями над колонками
  * диапазонов, строка «Всего», продукты с подытогом, в них операции и сервисы. Ячейка сервиса красится цветом
- * его степени (у сервиса со своими границами — по ним), а сам сервис со своими границами — в чёрной рамке
+ * его степени (у сервиса со своими границами — по ним), а сам сервис со своими границами — в чёрной рамке.
+ * У ненулевой ячейки сервиса — подсказка со случаями, из которых сложилось число (byCell — см. groupCases).
+ * У строк «Всего» и продуктов подсказок нет: в их итогах — все случаи степени, это десятки и сотни строк
  */
-function writeDetail(sheet, r, metric, buckets, rows, serviceBounds, places) {
+function writeDetail(sheet, r, metric, buckets, rows, serviceBounds, places, byCell) {
     put(sheet, r, 1, 'Детализация', SECTION);
     r++;
 
@@ -373,6 +464,10 @@ function writeDetail(sheet, r, metric, buckets, rows, serviceBounds, places) {
                 for (let i = 0; i < counts.length; i++) {
                     const style = countStyle(counts[i], stepenOf(columns[i].to, bounds));
                     put(sheet, r, FIRST_VALUE_COLUMN + i, counts[i], { ...style, align: 'center', border: true });
+                    if (counts[i]) {
+                        // какие случаи дали это число — подсказкой у ячейки
+                        putCasesNote(sheet, r, FIRST_VALUE_COLUMN + i, byCell.get(cellKey(row.service_id, metric.id, buckets[i].id)));
+                    }
                 }
                 r++;
             }
@@ -392,6 +487,59 @@ function writeStepenTotals(sheet, r, title, stepenCounts, places, isColored) {
         putMerged(sheet, r, places[k].first, r, places[k].last, stepenCounts[k], { ...GRAY, fill: fill, align: 'center' });
     }
     return r + 1;
+}
+
+
+// ============================================================================
+// Лист «Сырые данные»
+// ============================================================================
+
+/** Новый лист «Сырые данные» и ширина его колонок (RAW_COLUMNS) */
+function addRawSheet(workbook) {
+    const sheet = workbook.addWorksheet('Сырые данные', sheetOptions());
+    for (let i = 0; i < RAW_COLUMNS.length; i++) {
+        sheet.getColumn(1 + i).width = RAW_COLUMNS[i].width;
+    }
+    return sheet;
+}
+
+/**
+ * Таблица случаев, начиная со строки r: строка — один случай, колонки — RAW_COLUMNS. Названия продукта, операции,
+ * сервиса, метрики и диапазона — как в базе (data). Дата — настоящая дата Excel: по ней можно сортировать и фильтровать.
+ * У шапки таблицы — фильтры; она закреплена при прокрутке и повторяется на каждой странице при печати
+ *   cases — случаи сервисов из rows по дате, затем по id (groupCases)
+ */
+function writeRawCases(sheet, r, cases, data, rows) {
+    const services = new Map(rows.map(function (row) { return [row.service_id, row]; }));
+    const metricNames = new Map(data.metrics.map(function (metric) { return [metric.id, metric.name]; }));
+    const bucketLabels = new Map(data.buckets.map(function (bucket) { return [bucket.id, bucket.label]; }));
+
+    const headerRow = r;
+    for (let i = 0; i < RAW_COLUMNS.length; i++) {
+        put(sheet, r, 1 + i, RAW_COLUMNS[i].title, GRAY);
+    }
+    r++;
+
+    if (cases.length === 0) {
+        put(sheet, r, 1, 'Случаев нет', { color: TEXT_2 });
+    }
+    for (const item of cases) {
+        const service = services.get(item.service_id);
+        const cell = { border: true };
+        put(sheet, r, 1, item.id, { ...cell, align: 'center' });
+        put(sheet, r, 2, excelDate(item.case_date), { ...cell, align: 'center', numFmt: 'dd.mm.yyyy' });
+        putName(sheet, r, 3, service.product, RAW_COLUMNS[2].width, cell);
+        putName(sheet, r, 4, service.operation, RAW_COLUMNS[3].width, cell);
+        putName(sheet, r, 5, service.service, RAW_COLUMNS[4].width, { ...cell, fill: WASH });
+        put(sheet, r, 6, metricNames.get(item.metric_id), cell);
+        put(sheet, r, 7, bucketLabels.get(item.bucket_id), { ...cell, align: 'center' });
+        r++;
+    }
+
+    const lastRow = Math.max(r - 1, headerRow);
+    sheet.autoFilter = { from: { row: headerRow, column: 1 }, to: { row: lastRow, column: RAW_COLUMNS.length } };
+    sheet.views = [{ state: 'frozen', ySplit: headerRow, showGridLines: false }];
+    sheet.pageSetup.printTitlesRow = `${headerRow}:${headerRow}`;
 }
 
 
@@ -503,6 +651,54 @@ function excelColor(color) {
     }
     return hex.toUpperCase();
 }
+
+/** Дата случая '2026-10-07' → дата для ячейки Excel. Полночь по UTC — ExcelJS считает даты по UTC, день не сдвинется */
+function excelDate(value) {
+    const [year, month, day] = value.split('-').map(Number);
+    return new Date(Date.UTC(year, month - 1, day));
+}
+
+
+// ============================================================================
+// Подсказки у ячеек (примечания Excel)
+// ============================================================================
+
+/**
+ * Подсказка у ячейки (row, col): случаи, из которых сложилось её число, по одному в строке — «#1042 · 07.10.2026».
+ * Это примечание (note): оно есть во всех версиях Excel, в отличие от новых цепочек комментариев (threaded comments).
+ * В Excel у ячейки появляется красный уголок, при наведении — окошко со списком
+ *   cellCases — случаи ячейки по дате, затем по id (groupCases)
+ */
+function putCasesNote(sheet, row, col, cellCases) {
+    const text = cellCases.map(function (item) { return `#${item.id} · ${formatDate(item.case_date)}`; }).join('\n');
+    sheet.getCell(row, col).note = { texts: [{ text: text, font: { size: 9, name: 'Calibri' } }] };
+}
+
+// Стиль текстового поля примечания, каким его пишет ExcelJS, и он же с «автоматическим размером»
+const NOTE_TEXTBOX_STYLE = 'style="mso-direction-alt:auto"';
+const NOTE_TEXTBOX_FIT_STYLE = 'style="mso-direction-alt:auto;mso-fit-shape-to-text:t"';
+
+/**
+ * Включить у всех примечаний «автоматический размер» (в Excel: Формат примечания → Выравнивание).
+ * ExcelJS пишет окошко примечания постоянного размера — около 2×4 ячеек, и список из шести случаев и длиннее
+ * в нём обрезался бы. Настройки для этого в ExcelJS нет, поэтому правим готовый файл: .xlsx — это zip-архив,
+ * примечания в нём — рисунки VML (xl/drawings/vmlDrawing1.vml и т.д.), их текстовому полю добавляем
+ * mso-fit-shape-to-text — тогда Excel подгоняет окошко под текст. buffer — файл от ExcelJS, возвращает исправленный
+ */
+async function fitNotes(JSZip, buffer) {
+    const zip = await JSZip.loadAsync(buffer);
+    const vmlFiles = zip.file(/^xl\/drawings\/vmlDrawing\d+\.vml$/);
+    for (const file of vmlFiles) {
+        const vml = await file.async('string');
+        zip.file(file.name, vml.replaceAll(NOTE_TEXTBOX_STYLE, NOTE_TEXTBOX_FIT_STYLE));
+    }
+    return zip.generateAsync({ type: 'arraybuffer', compression: 'DEFLATE' });
+}
+
+
+// ============================================================================
+// Скачивание
+// ============================================================================
 
 /** Отдать файл браузеру на скачивание: ссылка на файл в памяти и «нажатие» на неё */
 function download(buffer, fileName) {

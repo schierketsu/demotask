@@ -6,13 +6,14 @@
 //   пользователь выбирает период (месяц, год или диапазон дат) → превращаем его в две даты «с … по …» (period.js),
 //     загружаем данные за этот период → data заменяется → страница обновилась
 //   пользователь нажимает на чип сервиса → окно сервиса (ServiceDialog) → сохранил границы → serviceBounds меняется
-//   пользователь нажимает «Экспорт» → файл Excel за этот период и продукт (excel.js) скачивается
+//   пользователь нажимает «Экспорт» → загружаем случаи по одному за этот период → файл Excel за этот период
+//     и продукт (excel.js) скачивается
 //   editor нажимает «Импорт» → окно ImportDialog: CSV → проверка → «Принять изменения» → данные загружаются заново
 //
 // App рисуется только после входа (main.jsx): кто вошёл и есть ли у него роль editor — currentUser() из auth.js.
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { loadData } from './api.js';
+import { loadCases, loadData } from './api.js';
 import { currentUser } from './auth.js';
 import { buildServiceStats, buildTableColumns, getStepenRanges, maxShownCount, rowsOfProduct, boundsOf } from './calc.js';
 import { initialPeriod, periodDates, periodLabel } from './period.js';
@@ -110,13 +111,15 @@ export default function App() {
     }
 
     /**
-     * Нажали «Экспорт»: файл Excel за загруженный период и выбранный продукт — лист без своих границ сервисов
-     * и лист с ними (excel.js). Выбранная степень на файл не влияет — в нём все степени
+     * Нажали «Экспорт»: файл Excel за загруженный период и выбранный продукт — лист без своих границ сервисов,
+     * лист с ними и лист «Сырые данные» (excel.js). Выбранная степень на файл не влияет — в нём все степени
      */
     async function exportExcel() {
         setExporting(true);
         try {
-            await exportToExcel(data, period, productId, serviceBounds);
+            // случаи по одному — для подсказок у ячеек и листа «Сырые данные»; за тот же период, что на странице
+            const cases = await loadCases(data.from, data.to);
+            await exportToExcel(data, period, productId, serviceBounds, cases);
         } catch (exportError) {
             setError(`Не удалось выгрузить Excel: ${exportError.message}`);
         } finally {

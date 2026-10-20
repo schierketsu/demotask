@@ -79,6 +79,19 @@ def add_case(conn: psycopg.Connection, case: dict, created_by: str) -> dict:
     return rows[0]
 
 
+def cases_in_period(conn: psycopg.Connection, period_from: date, period_to: date) -> list[dict]:
+    """Случаи деградации за период с period_from по period_to (оба дня включительно) — каждый отдельной строкой,
+    по дате, а в один день — по id: [{'id': 1042, 'service_id': 4, 'metric_id': 1, 'bucket_id': 3,
+    'case_date': '2026-10-07'}, …]. Из них страница собирает в Excel подсказки у ячеек и лист «Сырые данные»;
+    названия сервисов, метрик и диапазонов у неё уже есть (dashboard_data)
+    """
+    return query(conn, """
+        SELECT id, service_id, metric_id, bucket_id, to_char(case_date, 'YYYY-MM-DD') AS case_date
+        FROM degradation_case
+        WHERE case_date BETWEEN %(from)s AND %(to)s
+        ORDER BY case_date, id""", {"from": period_from, "to": period_to})
+
+
 def dashboard_data(conn: psycopg.Connection, period_from: date | None, period_to: date | None) -> dict:
     """Собрать данные дашборда за период с period_from по period_to (оба дня включительно).
 

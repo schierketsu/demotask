@@ -1,5 +1,6 @@
-// api.js — запросы к серверу (backend/app/main.py): данные дашборда за период (GET /api/data)
-// и импорт случаев из CSV (POST /api/cases/import: проверка и запись, только роль editor).
+// api.js — запросы к серверу (backend/app/main.py): данные дашборда за период (GET /api/data),
+// случаи по одному для Excel (GET /api/cases) и импорт случаев из CSV (POST /api/cases/import: проверка и запись,
+// только роль editor).
 // Каждый запрос несёт access token Keycloak в заголовке Authorization: Bearer … (auth.js).
 
 import { accessToken } from './auth.js';
@@ -65,6 +66,16 @@ export async function loadData(from, to) {
         metric.label = shortMetricName(metric.name);
     }
     return body;
+}
+
+/**
+ * Случаи деградации за период с from по to (оба включительно) — каждый отдельно, с его id, по дате, а в один день —
+ * по id: [{ id: 1042, service_id: 4, metric_id: 1, bucket_id: 3, case_date: '2026-10-07' }, …].
+ * Нужны только для Excel (excel.js): подсказки у ячеек детализации и лист «Сырые данные»
+ */
+export async function loadCases(from, to) {
+    const body = await request(`/api/cases?${new URLSearchParams({ from: from, to: to })}`);
+    return body.cases;
 }
 
 /**
