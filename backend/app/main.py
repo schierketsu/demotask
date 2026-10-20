@@ -15,8 +15,8 @@
        → 201 и созданная запись с id, created_at и created_by
 
   POST /api/cases/import — импорт случаев из CSV (только editor); тело запроса — текст файла в формате
-       db/seed/degradation_case.csv. С ?dry_run=true — только проверка: сколько записей в какие сервисы и месяцы
-       добавится и какие строки с ошибками (в базу ничего не пишется). Без него — проверка ещё раз и запись
+       db/seed/degradation_case.csv. С ?dry_run=true — только проверка: какие записи добавятся
+       (с названиями их сервисов) и какие строки с ошибками (в базу ничего не пишется). Без него — проверка ещё раз и запись
        всех строк одной транзакцией → 201 {"added": 519}; если хоть одна строка с ошибкой — не пишется ничего
 
   GET /api/docs — описание API со страницей для пробных запросов (FastAPI строит её сам)
@@ -171,7 +171,7 @@ def post_case(case: NewCase, user: User = Depends(can_write)) -> JSONResponse:
 @app.post("/api/cases/import")
 async def import_cases(
     request: Request,
-    dry_run: bool = Query(False, description="true — только проверить файл и вернуть сводку, ничего не записывая"),
+    dry_run: bool = Query(False, description="true — только проверить файл и вернуть записи и ошибки, ничего не записывая"),
     user: User = Depends(can_write),
 ) -> JSONResponse:
     """Импорт случаев из CSV — только роль editor. Тело запроса — текст файла (Content-Type: text/csv)"""
@@ -188,7 +188,7 @@ async def import_cases(
 
 
 def run_import(text: str, dry_run: bool, user: User) -> JSONResponse:
-    """Проверить CSV по справочникам из базы и либо вернуть сводку (dry_run), либо записать все строки разом"""
+    """Проверить CSV по справочникам из базы и либо вернуть предпросмотр (dry_run), либо записать все строки разом"""
     try:
         header, rows = parse_csv(text)
     except ImportFileError as error:

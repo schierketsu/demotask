@@ -1,5 +1,5 @@
 """Новые случаи деградации: проверка — одной записи (POST /api/cases) и пачки из CSV (POST /api/cases/import) —
-и сводка для предпросмотра импорта.
+и предпросмотр импорта.
 
 Правила одни для обоих путей: сервис существует и не в архиве, метрика и диапазон существуют, дата — ГГГГ-ММ-ДД,
 не раньше 2000 года и не в будущем. Нижняя граница — чтобы дата из далёкого прошлого не растянула список месяцев
@@ -126,28 +126,19 @@ def parse_date(value: str) -> date | None:
 
 
 def summarize(cases: list[dict], services: dict) -> dict:
-    """Сводка для предпросмотра: сколько записей добавится в какой сервис в каком месяце.
+    """Предпросмотр импорта: годные строки файла и названия их сервисов.
 
-    {'total': 519, 'months': ['2025-09', …], 'services': [{'service_id': 4, 'service': '…', 'operation': '…',
-    'product': '…', 'counts': [11, 9, …] (по месяцам из months), 'total': 224}, …]} — сервисы в порядке дашборда
+    {'total': 137,
+     'services': [{'service_id': 4, 'service': '…', 'operation': '…'}, …] — сервисы, в которые добавятся записи,
+         в порядке дашборда,
+     'records': [{'service_id': 4, 'metric_id': 1, 'bucket_id': 3, 'case_date': '2026-10-08'}, …] — годные строки
+         файла в его порядке; названия метрик и диапазонов у страницы уже есть (GET /api/data)}
     """
-    months = sorted({case["case_date"].strftime("%Y-%m") for case in cases})
-    position = {month: i for i, month in enumerate(months)}
-
-    counts = {}   # id сервиса → [сколько в каждом месяце]
-    for case in cases:
-        row = counts.setdefault(case["service_id"], [0] * len(months))
-        row[position[case["case_date"].strftime("%Y-%m")]] += 1
-
-    rows = []
-    for service_id, service in services.items():   # services — в порядке дашборда (data.case_references)
-        if service_id in counts:
-            rows.append({
-                "service_id": service_id,
-                "service": service["name"],
-                "operation": service["operation"],
-                "product": service["product"],
-                "counts": counts[service_id],
-                "total": sum(counts[service_id]),
-            })
-    return {"total": len(cases), "months": months, "services": rows}
+    used = {case["service_id"] for case in cases}
+    rows = [
+        {"service_id": service_id, "service": service["name"], "operation": service["operation"]}
+        for service_id, service in services.items()   # services — в порядке дашборда (data.case_references)
+        if service_id in used
+    ]
+    records = [{**case, "case_date": case["case_date"].isoformat()} for case in cases]   # дата → '2026-10-08' для JSON
+    return {"total": len(cases), "services": rows, "records": records}

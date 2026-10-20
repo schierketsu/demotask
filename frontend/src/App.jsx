@@ -222,7 +222,12 @@ export default function App() {
             )}
 
             {/* окно импорта из CSV; записали — загружаем данные выбранного периода заново */}
-            {isImportOpen && <ImportDialog onImported={function () { changePeriod({}); }} onClose={closeImport} />}
+            {isImportOpen && (
+                <ImportDialog
+                    metrics={data.metrics} buckets={data.buckets}
+                    onImported={function () { changePeriod({}); }} onClose={closeImport}
+                />
+            )}
         </>
     );
 }

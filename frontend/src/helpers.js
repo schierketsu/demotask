@@ -24,6 +24,11 @@ export function accidentsWord(count) {
     return plural(count, ['авария', 'аварии', 'аварий']);
 }
 
+/** Слово «запись» в нужной форме для числа: 1 → «запись», 3 → «записи», 137 → «записей» */
+export function recordsWord(count) {
+    return plural(count, ['запись', 'записи', 'записей']);
+}
+
 /** Классы CSS через пробел, пустые пропускаются: classNames('slice', false, 'dimmed') → 'slice dimmed' */
 export function classNames(...names) {
     return names.filter(Boolean).join(' ');

@@ -17,7 +17,7 @@ class ServiceUnavailableError(Exception):
 
 
 def case_references(conn: psycopg.Connection) -> dict:
-    """Справочники для проверки новых случаев (cases.check_rows) и сводки импорта:
+    """Справочники для проверки новых случаев (cases.check_rows) и предпросмотра импорта:
     сервисы {id: {name, is_active, operation, product}} в порядке дашборда, id метрик и id диапазонов
     """
     services = query(conn, """

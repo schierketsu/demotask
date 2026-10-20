@@ -80,7 +80,8 @@ export async function loadCases(from, to) {
 
 /**
  * Проверить CSV перед импортом — в базу ничего не пишется. Ответ сервера:
- * { total, months: ['2025-09', …], services: [{ service, operation, product, counts: [по месяцам], total }],
+ * { total, services: [{ service_id, service, operation }],
+ *   records: [{ service_id, metric_id, bucket_id, case_date }] — годные строки файла в его порядке,
  *   rowCount, errorCount, errors: [{ line, error }] }
  */
 export async function previewImport(csv) {

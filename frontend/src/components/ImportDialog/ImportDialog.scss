@@ -1,11 +1,18 @@
 // ImportDialog.scss — стили окна импорта из CSV (ImportDialog.jsx). Оболочка окна — в styles/dialog.scss.
+// Номера страниц и стрелки — такие же, как переключатель «Месяц | Год | Диапазон» и стрелки периода
+// в панели фильтров (Filters.scss): те же миксины и цвета.
 
 @use '../../styles/mixins' as *;
 
-/* окно уже окна сервиса, но таблице по месяцам нужно место */
-.import-dialog { width: min(960px, calc(100vw - 32px)); }
+/* окно уже окна сервиса, но таблице записей нужно место. minmax(0, …) — чтобы широкая таблица прокручивалась
+   внутри своей рамки, а не растягивала окно шире экрана (как main в global.scss) */
+.import-dialog {
+    width: min(960px, calc(100vw - 32px));
 
-/* --- панель для файла: широкая, с пунктирной рамкой; файл над ней — рамка темнеет, фон серый --- */
+    .dialog-body, .import-preview, .records { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- панель для файла, пока его нет: широкая, с пунктирной рамкой; файл над ней — рамка темнеет, фон серый --- */
 .drop-zone {
     position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
     min-height: 220px; padding: 32px 24px; border: 2px dashed var(--raised-border); border-radius: 16px;
@@ -14,29 +21,56 @@
     &:hover, &.drag-over { border-color: var(--text); background: var(--wash); }
     /* с клавиатуры (Tab): фокус на скрытом поле выбора файла — рамка вокруг всей панели */
     &:has(.drop-input:focus-visible) { @include focus-ring; }
-    &.busy { cursor: progress; opacity: .6; }
-
-    /* файл уже выбран — панель узкая: иконка и имя файла в строку */
-    &.compact {
-        flex-direction: row; justify-content: flex-start; min-height: 0; padding: 14px 20px; text-align: left;
-
-        .drop-icon { width: 24px; height: 24px; }
-    }
 }
-/* настоящее поле выбора файла — невидимое, но доступное с клавиатуры; нажатие на панель открывает его */
+/* настоящее поле выбора файла — невидимое, но доступное с клавиатуры; нажатие на панель или «Заменить» открывает его */
 .drop-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 .drop-icon { flex: none; width: 40px; height: 40px; color: var(--text-2); }
 .drop-text {
     display: grid; gap: 4px;
 
     strong { font-size: 16px; }
+}
+
+/* --- карточка выбранного файла: иконка, имя и число записей, справа «Заменить»; другой файл над ней — рамка темнеет --- */
+.import-file {
+    display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+    border: 1px solid var(--line); border-radius: 16px; background: var(--wash); transition: border-color .15s;
+
+    &.drag-over { border-color: var(--text); }
+}
+.import-file-icon {
+    display: grid; place-items: center; flex: none; width: 44px; height: 44px; border-radius: 12px;
+    background: var(--bg); color: var(--text-2);
+
+    svg { width: 22px; height: 22px; }
+}
+.import-file-text {
+    display: grid; gap: 2px; flex: 1; min-width: 0;
+
+    /* длинное имя файла — с многоточием */
+    strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
     small { color: var(--text-2); font-size: 13px; }
+}
+/* «Заменить» — кнопка окна (.btn) того же размера, что «Отмена»; внутри — скрытое поле выбора файла */
+.import-replace {
+    position: relative; flex: none; cursor: pointer;
+
+    &:hover { border-color: var(--text-2); }
+    &:has(.drop-input:focus-visible) { @include focus-ring; }
+    /* пока идёт проверка или запись — недоступна */
+    &.busy { opacity: .4; cursor: default; pointer-events: none; }
 }
 
 /* --- что добавится --- */
-.import-preview { display: grid; gap: 12px; }
-.import-summary { font-size: 15px; }
+.import-preview { display: grid; gap: 16px; }
 .import-done { font-size: 16px; }
+
+/* с какой по какую дату записи — с иконкой календаря */
+.import-period {
+    display: flex; align-items: center; gap: 8px; margin: 0; font-variant-numeric: tabular-nums;
+
+    svg { flex: none; color: var(--text-2); }
+}
 
 /* ошибки в файле — в красной рамке, как сообщение об ошибке над страницей */
 .import-errors {
@@ -47,26 +81,70 @@
     ul { margin: 0; padding: 0 0 2px 20px; max-height: 160px; overflow-y: auto; }
 }
 
-/* таблица «сервис × месяц»: широкая прокручивается вбок, колонка сервисов при этом стоит на месте */
-.import-table-wrap { max-height: 360px; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
-.import-table {
+/* --- записи: строки файла по страницам --- */
+.records { display: grid; gap: 12px; }
+/* таблица в рамке; широкая (на узком экране) прокручивается вбок внутри неё */
+.import-table-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.records-table {
     border-collapse: collapse; min-width: 100%; font-size: 13px; font-variant-numeric: tabular-nums;
 
-    th, td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: center; white-space: nowrap; }
-    thead th {
-        position: sticky; top: 0; z-index: 1; background: var(--wash); font-weight: 700;
+    th, td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; }
+    thead th { background: var(--wash); font-weight: 700; }
+    tbody tr:last-child td { border-bottom: 0; }
+    /* сервис — жирным, операция — мелко серым под ним */
+    td strong { display: block; }
+    td .muted { display: block; font-size: 12px; }
+    /* название сервиса и операции переносятся, но колонка не уже 200px: на узком экране таблица прокручивается вбок */
+    .name-col { min-width: 200px; white-space: normal; }
+    .date-col { width: 110px; }
+    .metric-col { width: 190px; }
+    .range-col { width: 150px; }
+}
+/* диапазон — плашка бледного цвета степени с цветной точкой, как ячейки таблицы и легенда на дашборде */
+.range-badge {
+    display: inline-flex; align-items: center; gap: 8px; min-width: 96px; padding: 4px 10px; border-radius: 8px;
+    color: var(--text);
+}
+.range-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; }
 
-        /* год — второй строкой под месяцем */
-        .muted { display: block; font-weight: 400; font-size: 12px; }
-    }
-    .service-col {
-        position: sticky; left: 0; z-index: 1; min-width: 220px; background: var(--bg); text-align: left;
-        white-space: normal; font-weight: 700;
+/* страницы: слева «Показаны 1–10 из 137», посередине номера со стрелками, справа длина страницы */
+.pager {
+    display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px;
+    font-size: 14px; font-variant-numeric: tabular-nums;
+}
+.pager-nav { display: flex; align-items: center; gap: 8px; }
+/* номера — как переключатель периода: на серой дорожке, открытая страница — белая «таблетка» */
+.pager-pages {
+    display: flex; align-items: center; padding: 3px; border-radius: 12px; background: var(--wash);
 
-        /* продукт и операция сервиса — мелко под названием */
-        .muted { display: block; font-weight: 400; font-size: 12px; }
+    button {
+        min-width: 32px; height: 30px; padding: 0 8px; border: 0; border-radius: 9px; background: none; color: var(--text-2);
+
+        &:hover { color: var(--text); }
+        &[aria-current="page"] { @include raised($border: false); color: var(--text); }
+        &:focus-visible { @include focus-ring; }
     }
-    thead .service-col { z-index: 2; background: var(--wash); }
-    .total { font-weight: 700; }
-    tfoot th, tfoot td { border-bottom: 0; background: var(--wash); font-weight: 700; }
+}
+.pager-gap { min-width: 24px; color: var(--text-2); text-align: center; }
+/* стрелки — как стрелки периода в панели: квадратные кнопки в тонкой рамке с уголком внутри */
+.pager-arrow {
+    position: relative; width: 36px; height: 36px; flex: none; padding: 0;
+    border: 1px solid var(--edge); border-radius: 10px; background: var(--bg);
+
+    &:hover:not(:disabled) { background: var(--wash); }
+    &:disabled { opacity: .3; cursor: default; }
+    &:focus-visible { @include focus-ring; }
+    &::before { @include chevron($color: var(--text)); position: absolute; top: 50%; left: 50%; }
+}
+.pager-prev::before { transform: translate(-30%, -50%) rotate(135deg); }
+.pager-next::before { transform: translate(-70%, -50%) rotate(-45deg); }
+/* «по [10 ⌄]» — выбор длины страницы: кнопка со списком, как «Продукт» в панели фильтров (Filters.scss:
+   .period-title, .picker, .option). Здесь — только отличия; составные селекторы — чтобы перебить Filters.scss,
+   в какой бы последовательности стили ни попали в сборку */
+.pager-size { display: flex; align-items: center; gap: 8px; }
+/* число короткое — кнопка по нему, без запаса ширины под название продукта */
+.period-title.page-size-title { min-width: 0; }
+/* список — над кнопкой и по её правому краю: кнопка внизу окна, вниз списку не хватило бы места */
+.picker.page-size-picker {
+    top: auto; bottom: calc(100% + 8px); left: auto; right: 0; width: auto; min-width: 100%; padding: 8px; transform: none;
 }

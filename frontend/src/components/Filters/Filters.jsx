@@ -196,13 +196,13 @@ function yearsOf(months) {
 }
 
 /**
- * Закрывать открытый календарь нажатием мимо него и клавишей Esc.
+ * Закрывать открытый календарь или список нажатием мимо него и клавишей Esc.
  *   isOpen — открыт ли; setOpen — функция из useState, которая открывает и закрывает;
  *   box — ссылка (useRef) на кнопку с календарём: нажатие внутри неё календарь не закрывает.
  * Слушатели вешаем на всю страницу, только пока календарь открыт, и снимаем, когда закрылся
- * (функция, которую возвращает useEffect)
+ * (функция, которую возвращает useEffect). Им же закрывается список «по 10» в окне импорта (ImportDialog)
  */
-function useCloseOnOutside(isOpen, setOpen, box) {
+export function useCloseOnOutside(isOpen, setOpen, box) {
     useEffect(function () {
         if (!isOpen) {
             return undefined;
