@@ -100,6 +100,14 @@ npm run dev
 
 ![Дашборд, тёмная тема](docs/screenshots/dashboard-dark.png)
 
+### Иконки
+
+Иконки взяты из дизайн-системы Admiral: пакет [`@admiral-ds/icons`](https://www.npmjs.com/package/@admiral-ds/icons), версия закреплена точно на 2.0.0. Компоненты Admiral не используются, только иконки.
+
+В SVG Admiral зашит цвет (`#626F84`), поэтому файл иконки служит маской (CSS `mask`): от него берётся только форма, а цвет — от текста рядом. Так иконки перекрашиваются вместе с темой. В разметке иконку рисует компонент `Icon` (`src/components/Icon`), например `<Icon src={exitIcon} />`. Уголки у кнопок со списком, стрелки листания и крестик окна рисуются в стилях миксином `icon` (`src/styles/_mixins.scss`).
+
+Солнца в версии 2.0.0 нет (оно появилось в 2.2.0), поэтому оно своё: `src/icons/sun.svg`, нарисовано так же, как иконки Admiral (сетка 24, линии 1.3). Переключатель на странице входа Keycloak держит свою копию солнца и луны в `keycloak/themes/degradations/login/resources/js/theme.js`.
+
 ## Как устроено
 
 ```
@@ -234,6 +242,7 @@ frontend/
   src/main.jsx          точка входа: проверка входа, потом App или экран входа
   src/App.jsx           состояние страницы и загрузка данных
   src/components/       компоненты, у каждого своя папка (Donut/Donut.jsx + Donut.scss)
+  src/icons/            свои иконки, которых нет в @admiral-ds/icons 2.0.0 (солнце)
   src/*.js              логика без React: calc, bounds, period, auth, api, helpers, config, excel, theme
   src/styles/           global.scss (шрифты, цвета), dialog.scss (окна), _mixins.scss
 ```

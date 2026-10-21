@@ -8,6 +8,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@admiral-ds/icons": "2.0.0",
     "exceljs": "^4.4.0",
     "jszip": "^3.10.2",
     "keycloak-js": "^26.2.4",

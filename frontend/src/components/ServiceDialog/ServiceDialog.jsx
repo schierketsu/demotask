@@ -24,11 +24,13 @@
 // держит фокус внутри окна и закрывает его по Esc.
 
 import { Fragment, useEffect, useRef, useState } from 'react';
+import lockIcon from '@admiral-ds/icons/build/security/LockOutline.svg';
 import { STEPEN_BOUNDS, STEPEN_COLORS, STEPEN_NAMES } from '../../config.js';
 import { getStepenRanges, stepenOf } from '../../calc.js';
 import { BOUND_STEP, enabledStepens, sameBounds, setBound, toggleStepen } from '../../bounds.js';
 import { accidentsWord, classNames } from '../../helpers.js';
 import { stepenVar } from '../../theme.js';
+import Icon from '../Icon/Icon.jsx';
 import { useTooltip } from '../Tooltip/Tooltip.jsx';
 import '../../styles/dialog.scss';   // оболочка окна: шапка, подвал, кнопки — общая с ImportDialog
 import './ServiceDialog.scss';   // стили этого компонента
@@ -475,13 +477,7 @@ function StepenCards({ draft, ranges, onChange }) {
     );
 }
 
-/** Значок замка (рисунок SVG); props — обработчики подсказки */
+/** Значок замка (иконка Admiral); props — обработчики подсказки */
 function LockIcon(props) {
-    return (
-        <svg className="lock-icon" viewBox="0 0 16 16" role="img" aria-label="Всегда до 100%" {...props}>
-            <rect x="3" y="7" width="10" height="7.5" rx="1.6" fill="none" stroke="currentColor" strokeWidth="1.4" />
-            <path d="M5.3 7V5a2.7 2.7 0 0 1 5.4 0v2" fill="none" stroke="currentColor" strokeWidth="1.4" />
-            <circle cx="8" cy="10.6" r="1" fill="currentColor" />
-        </svg>
-    );
+    return <Icon src={lockIcon} size={18} label="Всегда до 100%" className="lock-icon" {...props} />;
 }

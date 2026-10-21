@@ -66,7 +66,7 @@
 /* навигатор периода «‹ [Октябрь 2026 ⌄] ›» */
 .period-nav { display: flex; align-items: center; gap: 8px; }
 
-/* стрелки — квадратные кнопки в тонкой рамке, внутри уголок, повёрнутый влево или вправо;
+/* стрелки — квадратные кнопки в тонкой рамке, внутри уголок влево или вправо;
    на краю списка периодов — недоступны. plain — без рамки (стрелки года и месяца в календарях) */
 .nav-arrow {
     position: relative; width: 36px; height: 36px; flex: none; padding: 0;
@@ -76,10 +76,10 @@
     &:hover:not(:disabled) { background: var(--wash); }
     &:disabled { opacity: .3; cursor: default; }
     &:focus-visible { @include focus-ring; }
-    &::before { @include chevron($color: var(--text)); position: absolute; top: 50%; left: 50%; }
+    &::before { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 }
-.nav-prev::before { transform: translate(-30%, -50%) rotate(135deg); }
-.nav-next::before { transform: translate(-70%, -50%) rotate(-45deg); }
+.nav-prev::before { @include icon($icon-chevron-left, 20px, var(--text)); }
+.nav-next::before { @include icon($icon-chevron-right, 20px, var(--text)); }
 
 /* название периода — белая «таблетка» с тенью и стрелкой ⌄: нажатие открывает календарь (стрелка смотрит вверх) */
 .period-picker-box { position: relative; }
@@ -87,8 +87,8 @@
     @include pill-button;
     justify-content: center; min-width: 10em;
 
-    &::after { @include chevron; flex: none; transform: translateY(-25%) rotate(45deg); transition: transform .15s; }
-    &[aria-expanded="true"]::after { transform: translateY(25%) rotate(-135deg); }
+    &::after { @include icon($icon-chevron-down); flex: none; transition: transform .15s; }
+    &[aria-expanded="true"]::after { transform: rotate(180deg); }
     &:focus-visible { @include focus-ring; }
 }
 

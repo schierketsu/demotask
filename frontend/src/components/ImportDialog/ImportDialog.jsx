@@ -14,12 +14,14 @@
 // (заголовка и крестика нет).
 
 import { useEffect, useRef, useState } from 'react';
+import uploadIcon from '@admiral-ds/icons/build/system/UploadOutline.svg';
 import { commitImport, previewImport } from '../../api.js';
 import { stepenOf } from '../../calc.js';
 import { classNames, numberFormat, recordsWord } from '../../helpers.js';
 import { formatDate } from '../../period.js';
 import { stepenVar } from '../../theme.js';
 import { useCloseOnOutside } from '../Filters/Filters.jsx';   // и стили кнопки со списком — как у «Продукт»
+import Icon from '../Icon/Icon.jsx';
 import '../../styles/dialog.scss';   // оболочка окна: шапка, подвал, кнопки — общая с ServiceDialog
 import './ImportDialog.scss';        // стили этого компонента
 
@@ -28,18 +30,6 @@ const MAX_FILE_BYTES = 1024 * 1024;
 
 // Сколько записей на странице: варианты для выбора, первый — по умолчанию
 const PAGE_SIZES = [10, 25, 50, 100];
-
-/** Иконка «загрузить» 16×16 линиями цвета текста — в стиле иконок кнопок панели (Filters.jsx) */
-function UploadIcon({ className }) {
-    return (
-        <svg
-            className={className} width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
-            fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"
-        >
-            <path d="M8 10.5V2.5M4.5 6 8 2.5 11.5 6M2.5 13.5h11" />
-        </svg>
-    );
-}
 
 /**
  * Подпись под именем файла: сколько в нём записей и с какой по какую дату — «137 записей · 01.06 — 30.09.2026».
@@ -207,7 +197,7 @@ export default function ImportDialog({ metrics, buckets, onImported, onClose }) 
                             /* файла ещё нет — широкая пунктирная панель с подсказкой; нажатие открывает выбор файла */
                             <label className={classNames('drop-zone', isDragOver && 'drag-over')} {...dropHandlers}>
                                 <input type="file" accept=".csv,text/csv" className="drop-input" onChange={onFileInput} />
-                                <UploadIcon className="drop-icon" />
+                                <Icon src={uploadIcon} size={40} className="drop-icon" />
                                 <span className="drop-text">
                                     <strong>Перетащите CSV-файл сюда</strong>
                                     <span>или нажмите, чтобы выбрать</span>

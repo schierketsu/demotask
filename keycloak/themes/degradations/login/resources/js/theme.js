@@ -17,12 +17,17 @@
     }
     root.dataset.theme = theme;
 
-    // иконки — те же, что в ThemeToggle.jsx
-    var SVG = '<svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor"'
-        + ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">';
-    var SUN = SVG + '<circle cx="8" cy="8" r="2.8"/><path d="M8 1.5V3M8 13v1.5M1.5 8H3M13 8h1.5M3.4 3.4l1.06 1.06'
-        + 'M11.54 11.54l1.06 1.06M3.4 12.6l1.06-1.06M11.54 4.46l1.06-1.06"/></svg>';
-    var MOON = SVG + '<path d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53z"/></svg>';
+    // иконки — те же, что в ThemeToggle.jsx, только цвет не зашит, а берётся у текста (currentColor):
+    // солнце — своё (frontend/src/icons/sun.svg), луна — DarkModeOutline из @admiral-ds/icons 2.0.0 (MIT)
+    var SVG = '<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none">';
+    var SUN = SVG + '<circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="1.3"/>'
+        + '<path d="M12 3.65v1.7M12 18.65v1.7M3.65 12h1.7M18.65 12h1.7M6.1 6.1l1.2 1.2M16.7 16.7l1.2 1.2'
+        + 'M6.1 17.9l1.2-1.2M16.7 7.3l1.2-1.2" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>';
+    var MOON = SVG + '<path fill-rule="evenodd" clip-rule="evenodd" fill="currentColor" d="M9.978 5.083c.13-.238-.074-.532'
+        + '-.333-.453a7.76 7.76 0 109.688 9.757c.081-.258-.212-.463-.45-.336a6.6 6.6 0 01-8.904-8.967zm10.853 6.537a.648.648'
+        + ' 0 00-1.01.038.549.549 0 01-.059.068 5.3 5.3 0 11-7.487-7.477.742.742 0 00.146-.176l.03-.045a.647.647 0 00-.07'
+        + '-.86.482.482 0 00-.297-.162.652.652 0 00-.153-.018 9.06 9.06 0 108.944 10.519c.082-.49.125-.994.125-1.507a.486'
+        + '.486 0 00-.17-.38z"/></svg>';
 
     document.addEventListener('DOMContentLoaded', function () {
         var button = document.createElement('button');

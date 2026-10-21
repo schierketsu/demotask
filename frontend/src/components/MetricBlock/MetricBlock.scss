@@ -41,7 +41,7 @@
 
         &::-webkit-details-marker { display: none; }   /* убираем стандартный треугольник */
         /* своя стрелка: вправо — карточка скрыта, вниз — раскрыта */
-        &::before { @include chevron; flex: none; transform: rotate(-45deg); transition: transform .15s; }
+        &::before { @include icon($icon-chevron-down); flex: none; transform: rotate(-90deg); transition: transform .15s; }
         &:hover { border-color: var(--text-2); }
         &:focus-visible { outline: none; border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); }
 
@@ -49,6 +49,6 @@
         :root[data-theme="dark"] &:hover { border-color: transparent; background: var(--wash); }
     }
 
-    &[open] > summary::before { transform: rotate(45deg); }
+    &[open] > summary::before { transform: none; }
     > .metric-card { margin-top: 8px; }
 }

@@ -6,9 +6,12 @@
 // Выбранное в панели — белая «таблетка» с тенью.
 
 import { useEffect, useRef, useState } from 'react';
+import downloadIcon from '@admiral-ds/icons/build/system/DownloadOutline.svg';
+import uploadIcon from '@admiral-ds/icons/build/system/UploadOutline.svg';
 import { MONTH_SHORT_NAMES } from '../../config.js';
 import { formatDate, formatMonth } from '../../period.js';
 import { classNames } from '../../helpers.js';
+import Icon from '../Icon/Icon.jsx';
 import { useTooltip } from '../Tooltip/Tooltip.jsx';
 import './Filters.scss';   // стили этого компонента
 
@@ -76,12 +79,7 @@ export default function Filters({
 
                     {/* выгрузка в Excel за выбранный период и продукт (excel.js) */}
                     <button type="button" className="export-button" onClick={onExport} disabled={isExporting}>
-                        <svg
-                            width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
-                            fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-                        >
-                            <path d="M8 2v8M4.5 6.5 8 10l3.5-3.5M2.5 13.5h11" />
-                        </svg>
+                        <Icon src={downloadIcon} />
                         {isExporting ? 'Экспорт…' : 'Экспорт'}
                     </button>
                 </div>
@@ -107,12 +105,7 @@ function ImportButton({ canImport, onImport }) {
             type="button" className="import-button" aria-disabled={!canImport}
             onClick={canImport ? onImport : undefined} {...tooltip}
         >
-            <svg
-                width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"
-                fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"
-            >
-                <path d="M8 10.5V2.5M4.5 6 8 2.5 11.5 6M2.5 13.5h11" />
-            </svg>
+            <Icon src={uploadIcon} />
             Импорт
         </button>
     );

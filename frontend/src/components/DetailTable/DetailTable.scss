@@ -38,11 +38,11 @@
             font-size: 14px; font-weight: 700; transition: opacity .15s;
 
             &::after {
-                @include chevron(6px);
-                position: absolute; top: 50%; right: 13px;
-                transform: translateY(-70%) rotate(45deg); transition: transform .15s;
+                @include icon($icon-chevron-down, 16px);
+                position: absolute; top: 50%; right: 8px;
+                transform: translateY(-50%); transition: transform .15s;
             }
-            &[aria-pressed="true"]::after { transform: translateY(-20%) rotate(-135deg); }
+            &[aria-pressed="true"]::after { transform: translateY(-50%) rotate(180deg); }
             &:hover { opacity: .8; }
             &:focus-visible { @include focus-ring(-2px); }
         }
@@ -71,10 +71,10 @@
     position: relative; display: block; width: 100%; padding: 10px 30px 10px 14px; border: 0; border-radius: 4px;
     background: none; text-align: left;
 
-    /* справа внутри чипа — стрелка, как у названий степеней в шапке, но повёрнутая на 90°: смотрит вправо › */
+    /* справа внутри чипа — стрелка, как у названий степеней в шапке, но смотрит вправо › */
     &::after {
-        @include chevron(6px, 2px, var(--text-2));
-        position: absolute; top: 50%; right: 13px; transform: translateY(-50%) rotate(-45deg);
+        @include icon($icon-chevron-right, 16px, var(--text-2));
+        position: absolute; top: 50%; right: 8px; transform: translateY(-50%);
     }
     &:focus-visible { @include focus-ring(-2px, var(--custom)); }
 }

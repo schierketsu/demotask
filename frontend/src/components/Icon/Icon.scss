@@ -1,0 +1,7 @@
+// Icon.scss — стили иконки (Icon.jsx): квадрат цвета текста, вырезанный по форме иконки (--icon — её файл).
+
+.icon {
+    display: inline-block; flex: none;
+    background-color: currentColor;
+    mask: var(--icon) center / contain no-repeat;   /* -webkit-mask для браузеров постарше Vite допишет сам при сборке */
+}

@@ -7,16 +7,24 @@
 // и можно менять на лету, а миксины только избавляют от повторов.
 
 
-// Стрелка-уголок из двух рамок (правой и нижней) — для псевдоэлемента ::before или ::after.
-// Куда она смотрит, задаёт поворот у самого элемента:
-//   rotate(45deg) — вниз ⌄, rotate(-135deg) — вверх, rotate(135deg) — влево ‹, rotate(-45deg) — вправо ›
-//   $size — сторона уголка, $width — толщина линий, $color — цвет (по умолчанию — цвет текста рядом)
-@mixin chevron($size: 7px, $width: 2px, $color: currentColor) {
+// Иконки Admiral (@admiral-ds/icons 2.0.0), которые рисуются в стилях: уголки у кнопок со списком, стрелки
+// листания, крестик окна. Иконки в разметке — компонент Icon (components/Icon).
+$icon-chevron-down: "@admiral-ds/icons/build/system/ChevronDownOutline.svg";
+$icon-chevron-up: "@admiral-ds/icons/build/system/ChevronUpOutline.svg";
+$icon-chevron-left: "@admiral-ds/icons/build/system/ChevronLeftOutline.svg";
+$icon-chevron-right: "@admiral-ds/icons/build/system/ChevronRightOutline.svg";
+$icon-close: "@admiral-ds/icons/build/service/CloseOutline.svg";
+
+// Иконка на псевдоэлементе ::before или ::after. Файл иконки — маска: от неё берётся только форма, а цвет — заливка,
+// по умолчанию цвет текста рядом. Поэтому иконка перекрашивается вместе с темой, хотя цвет в SVG Admiral зашит.
+// Уголок, который поворачивается (список раскрыт — смотрит вверх), — $icon-chevron-down и rotate у самого элемента.
+//   $file — одна из $icon-… выше, $size — сторона квадрата (иконки нарисованы на сетке 24), $color — цвет
+@mixin icon($file, $size: 20px, $color: currentColor) {
     content: "";
     width: $size;
     height: $size;
-    border-right: $width solid $color;
-    border-bottom: $width solid $color;
+    background-color: $color;
+    mask: url($file) center / contain no-repeat;   /* -webkit-mask для браузеров постарше Vite допишет сам при сборке */
 }
 
 // Выбранный элемент в панели фильтров и календарях — белая «таблетка», чуть приподнятая тенью, жирный текст.

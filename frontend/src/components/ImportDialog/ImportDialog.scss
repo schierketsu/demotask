@@ -24,7 +24,7 @@
 }
 /* настоящее поле выбора файла — невидимое, но доступное с клавиатуры; нажатие на панель или «Заменить» открывает его */
 .drop-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.drop-icon { flex: none; width: 40px; height: 40px; color: var(--text-2); }
+.drop-icon { color: var(--text-2); }
 .drop-text {
     display: grid; gap: 4px;
 
@@ -129,10 +129,10 @@
     &:hover:not(:disabled) { background: var(--wash); }
     &:disabled { opacity: .3; cursor: default; }
     &:focus-visible { @include focus-ring; }
-    &::before { @include chevron($color: var(--text)); position: absolute; top: 50%; left: 50%; }
+    &::before { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
 }
-.pager-prev::before { transform: translate(-30%, -50%) rotate(135deg); }
-.pager-next::before { transform: translate(-70%, -50%) rotate(-45deg); }
+.pager-prev::before { @include icon($icon-chevron-left, 20px, var(--text)); }
+.pager-next::before { @include icon($icon-chevron-right, 20px, var(--text)); }
 /* «по [10 ⌄]» — выбор длины страницы: кнопка со списком, как «Продукт» в панели фильтров (Filters.scss:
    .period-title, .picker, .option). Здесь — только отличия; составные селекторы — чтобы перебить Filters.scss,
    в какой бы последовательности стили ни попали в сборку */

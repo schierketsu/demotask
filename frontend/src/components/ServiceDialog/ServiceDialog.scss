@@ -74,12 +74,12 @@
         position: relative; width: 16px; height: 13px; padding: 0; border: 0; border-radius: 3px; background: none;
 
         &:hover { background: var(--wash); }
-        /* стрелка — уголок из двух рамок, повёрнутый вверх или вниз */
-        &::before { @include chevron(5px, 1.5px, var(--text-2)); position: absolute; top: 50%; left: 50%; }
+        /* стрелка — уголок вверх или вниз */
+        &::before { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
     }
 }
-.chip-up::before { transform: translate(-50%, -20%) rotate(-135deg); }
-.chip-down::before { transform: translate(-50%, -80%) rotate(45deg); }
+.chip-up::before { @include icon($icon-chevron-up, 14px, var(--text-2)); }
+.chip-down::before { @include icon($icon-chevron-down, 14px, var(--text-2)); }
 
 /* сама шкала: на неё можно нажать и тянуть (touch-action: none — чтобы на телефоне палец не прокручивал страницу) */
 .slider-bar { position: relative; height: 36px; margin-bottom: 14px; cursor: pointer; touch-action: none; }
@@ -123,7 +123,7 @@
     border-radius: 10px; background: var(--wash); font-size: 16px; font-variant-numeric: tabular-nums;
 }
 /* замок у последней включённой степени — она всегда до 100% */
-.lock-icon { position: absolute; right: 12px; width: 18px; height: 18px; color: var(--text-2); }
+.lock-icon { position: absolute; right: 12px; color: var(--text-2); }
 
 /* тумблер: серый — степень отключена, зелёный с кружком справа — включена */
 .switch {
